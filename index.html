@@ -150,7 +150,8 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 .tbl .inp{padding:5px 8px;font-size:14px;border-color:transparent;background:transparent}
 .tbl .inp:hover,.tbl .inp:focus{border-color:var(--line);background:#fff}
 .tbl select.inp{border-color:var(--line);background:#fff;min-width:118px}
-.sigimg{height:34px;max-width:120px;display:block}
+.sigimg{height:40px;max-width:130px;display:block;border-radius:4px}
+.sigimg:hover{outline:2px solid var(--accent-soft)}
 .tbl-wrap{overflow-x:auto}
 
 /* print preview */
@@ -676,7 +677,7 @@ function panePeople(m){
         <td><select class="inp" data-b="p.${p.id}.type" data-rr="pane"><option value="member" ${p.type==='member'?'selected':''}>กรรมการ</option><option value="guest" ${p.type==='guest'?'selected':''}>ผู้เข้าร่วม</option></select></td>
         <td><select class="inp" data-b="p.${p.id}.status" data-rr="pane">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${p.status===k?'selected':''}>${v.t}</option>`).join('')}</select>${p.time?`<div class="hint" style="padding-left:4px">${tm(p.time)} น.</div>`:''}</td>
         <td style="min-width:120px"><input class="inp" data-b="p.${p.id}.note" value="${esc(p.note)}" placeholder="${p.status==='leave'?'เหตุผลการลา':'—'}"></td>
-        <td>${p.sig?`<img class="sigimg" src="${p.sig}" alt="ลายมือชื่อ" title="คลิกเพื่อเซ็นใหม่" style="cursor:pointer" data-act="sign" data-id="${p.id}">`:`<button class="btn sm" data-act="sign" data-id="${p.id}">เซ็นชื่อ</button>`}</td>
+        <td>${p.sig?`<img class="sigimg" src="${p.sig}" alt="ลายมือชื่อ" title="คลิกเพื่อดูลายมือชื่อ" style="cursor:zoom-in" data-act="viewsig" data-id="${p.id}">`:`<button class="btn sm" data-act="sign" data-id="${p.id}">เซ็นชื่อ</button>`}</td>
         <td><div class="tools"><button class="btn ghost icon" title="เลื่อนขึ้น" data-act="p-up" data-id="${p.id}">↑</button><button class="btn ghost icon danger" title="ลบ" data-act="del-person" data-id="${p.id}">✕</button></div></td>
       </tr>`).join('')}</tbody></table></div>`
     :`<div class="none" style="padding:20px;text-align:center">ยังไม่มีรายชื่อผู้เข้าประชุม</div>`}
@@ -1174,6 +1175,7 @@ document.addEventListener('click', e=>{
     case 'del-person': { const p=m.people.find(x=>x.id===id); confirmBox('ลบรายชื่อ?',esc(p.name),()=>{ m.people=m.people.filter(x=>x.id!==id); m.deletedPeople=[...(m.deletedPeople||[]), id]; save(); render(); }); break; }
     case 'p-up': { const i=m.people.findIndex(x=>x.id===id); if(moveIn(m.people,i,-1)){save();render();} break; }
     case 'sign': openSign(m.people.find(x=>x.id===id)); break;
+    case 'viewsig': viewSig(m.people.find(x=>x.id===id)); break;
     case 'bulk': openBulk(m); break;
     case 'all-present': m.people.forEach(p=>{ if(p.status==='pending'){ p.status='present'; p.updated=Date.now(); } }); save(); render(); break;
     case 'copy-people': openCopy(m); break;
@@ -1253,6 +1255,12 @@ function makePad(canvas){
       o.getContext('2d').drawImage(canvas,0,0,o.width,o.height); return o.toDataURL('image/png');
     }
   };
+}
+function viewSig(p){
+  openModal(`<h3>ลายมือชื่อ</h3><p class="hint" style="margin:0 0 10px">${esc(p.name)}${p.role?' · '+esc(p.role):''} · ${STATUS[p.status]?STATUS[p.status].t:''}${p.time?' · เวลา '+tm(p.time)+' น.':''}</p>
+    <div style="border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px;text-align:center"><img src="${p.sig}" alt="ลายมือชื่อ ${esc(p.name)}" style="max-width:100%;height:180px;object-fit:contain"></div>
+    <div class="row" style="justify-content:space-between;margin-top:14px"><button class="btn" id="reSign">✍ เซ็นใหม่</button><button class="btn primary" data-close>ปิด</button></div>`);
+  $('#reSign').onclick = ()=>{ closeModal(); openSign(p); };
 }
 function openSign(p){
   openModal(`<h3>ลงลายมือชื่อ</h3><p class="hint" style="margin:0 0 10px">${esc(p.name)}${p.role?' · '+esc(p.role):''}</p>
