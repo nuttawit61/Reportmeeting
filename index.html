@@ -954,7 +954,7 @@ function panePrint(m){
     </div>
   </div>
   ${fontCard()}
-  ${ui.doc!=='signin'?lhCard():''}
+  ${lhCard()}
   <div class="paper-wrap"><div class="paper doc" id="paper">${buildDoc(m, ui.doc)}</div></div>`;
 }
 function buildDoc(m, d){ return d==='agenda'?docAgenda(m):d==='signin'?docSignin(m):docMinutes(m); }
@@ -979,7 +979,7 @@ function docSignin(m){
   const rows = m.people.map((p,i)=>`<tr><td class="n">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.role||p.position)}${p.position&&p.role?'<br><small>'+esc(p.position)+'</small>':''}</td>
     <td style="text-align:center;width:3.6cm">${p.sig?`<img class="sigimg" src="${p.sig}">`:(p.status==='leave'?'ลาประชุม':p.status==='online'?'ออนไลน์':'')}</td><td style="text-align:center;width:1.8cm">${p.time?tm(p.time):''}</td></tr>`).join('');
   const blanks = Array.from({length:Math.max(5, 15-m.people.length)},(_,i)=>`<tr class="blank"><td class="n">${m.people.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
-  return `<p class="title">ใบลงชื่อผู้เข้าประชุม</p>
+  return letterhead() + `<p class="title">ใบลงชื่อผู้เข้าประชุม</p>
     <p class="c h">${esc(m.title||'')}${m.no?' ครั้งที่ '+esc(m.no):''}</p>
     <p class="c">${thaiDate(m.date)} เวลา ${tm(m.start)} น. ${m.mode==='online'?'ผ่านระบบประชุมออนไลน์':'ณ '+esc(m.venue||'')}</p>
     <table class="sheet"><thead><tr><th>ลำดับ</th><th>ชื่อ – สกุล</th><th>ตำแหน่ง</th><th>ลายมือชื่อ</th><th>เวลา</th></tr></thead><tbody>${rows}${blanks}</tbody></table>`;
