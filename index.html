@@ -261,13 +261,13 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 .doc table.sheet{border-collapse:collapse;width:100%;margin-top:8pt}
 .doc table.sheet th,.doc table.sheet td{border:1px solid #000;padding:3pt 5pt;vertical-align:middle;font-size:calc(var(--ds) - 1pt)}
 .doc table.sheet th{font-weight:bold;text-align:center;background:#f1f1f1}
-.doc table.sheet td.n{text-align:center;width:1.1cm}
+.doc table.sheet td.n{text-align:center;width:1.2cm}
 .doc table.sheet tr.blank td{height:1.05cm}
 .doc table.atbl{border-collapse:collapse;margin:4pt 0 4pt 1.5cm;width:calc(100% - 1.5cm)}
 .doc table.atbl th,.doc table.atbl td{border:1px solid #000;padding:2pt 5pt;font-size:calc(var(--ds) - 2pt)}
 .doc .sig{margin-top:28pt;margin-left:38%;text-align:center}
 .doc .sig p{margin-bottom:2pt;white-space:nowrap}
-.doc .sigimg{height:1cm;max-width:3.4cm}
+.doc .sigimg{height:1cm;max-width:2.8cm;object-fit:contain;margin:0 auto}
 .doc .meta{margin:2pt 0}
 .doc .mt{margin-top:10pt}
 .doc .sm,.doc small{font-size:calc(var(--ds) - 2pt)}
@@ -985,13 +985,13 @@ function docAgenda(m){
   (m.secretary?`<div class="sig"><p>${esc(m.secretary)}</p><p>เลขานุการ</p></div>`:'');
 }
 function docSignin(m){
-  const rows = m.people.map((p,i)=>`<tr><td class="n">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.role||p.position)}${p.position&&p.role?'<br><small>'+esc(p.position)+'</small>':''}</td>
-    <td style="text-align:center;width:3.6cm">${p.sig?`<img class="sigimg" src="${p.sig}">`:(p.status==='leave'?'ลาประชุม':p.status==='online'?'ออนไลน์':'')}</td><td style="text-align:center;width:1.8cm">${p.time?tm(p.time):''}</td></tr>`).join('');
-  const blanks = Array.from({length:Math.max(5, 15-m.people.length)},(_,i)=>`<tr class="blank"><td class="n">${m.people.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+  const rows = m.people.map((p,i)=>`<tr><td class="n">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.position||p.org||'')}</td>
+    <td style="text-align:center;width:2.9cm">${p.sig?`<img class="sigimg" src="${p.sig}">`:(p.status==='leave'?'ลาประชุม':p.status==='online'?'ออนไลน์':'')}</td><td style="text-align:center;width:1.5cm;white-space:nowrap">${p.time?tm(p.time):''}</td><td style="text-align:center;width:2.7cm">${esc(p.role||'')}</td></tr>`).join('');
+  const blanks = Array.from({length:Math.max(5, 15-m.people.length)},(_,i)=>`<tr class="blank"><td class="n">${m.people.length+i+1}</td><td></td><td></td><td></td><td></td><td></td></tr>`).join('');
   return letterhead() + `<p class="title">แบบบันทึกรายชื่อผู้เข้าประชุม</p>
     <p class="c h">${esc(m.title||'')}${m.no?' ครั้งที่ '+esc(m.no):''}</p>
     <p class="c">${thaiDate(m.date)} เวลา ${tm(m.start)} น. ${m.mode==='online'?'ผ่านระบบประชุมออนไลน์':'ณ '+esc(m.venue||'')}</p>
-    <table class="sheet"><thead><tr><th>ลำดับ</th><th>ชื่อ – สกุล</th><th>ตำแหน่ง</th><th>ลายมือชื่อ</th><th>เวลา</th></tr></thead><tbody>${rows}${blanks}</tbody></table>`;
+    <table class="sheet"><thead><tr><th>ลำดับ</th><th>ชื่อ – สกุล</th><th>ตำแหน่ง</th><th>ลายมือชื่อ</th><th>เวลา</th><th>ตำแหน่ง<br>ในที่ประชุม</th></tr></thead><tbody>${rows}${blanks}</tbody></table>`;
 }
 function plist(arr, extra){
   if(!arr.length) return `<p class="blk">– ไม่มี –</p>`;
@@ -1060,7 +1060,8 @@ function imgX(img, ctx){
   const id = ctx.media.length + 1, ext = mm[1]==='png' ? 'png' : 'jpg';
   ctx.media.push({name:`image${id}.${ext}`, data:u});
   const hcm = img.classList.contains('lh-logo') ? lh().size : 0.9;
-  const nw = img.naturalWidth||1, nh = img.naturalHeight||1, cy = Math.round(hcm*360000), cx = Math.round(cy*nw/nh);
+  const nw = img.naturalWidth||1, nh = img.naturalHeight||1; let cy = Math.round(hcm*360000), cx = Math.round(cy*nw/nh);
+  if(img.classList.contains('sigimg') && cx > 2.7*360000){ cy = Math.round(cy*2.7*360000/cx); cx = Math.round(2.7*360000); }
   return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="image${id}.${ext}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdImg${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
 }
 function runsX(node, ctx, f={}){
@@ -1100,7 +1101,7 @@ function tblX(t, ctx){
   const kind = c.contains('sheet') ? 'sheet' : c.contains('atbl') ? 'atbl' : c.contains('lh') ? 'lh' : 'pl';
   const ncol = Math.max(...rows.map(r=>r.children.length));
   let ind = 0, widths;
-  if(kind==='sheet') widths = [737,3005,2268,2041,1021];
+  if(kind==='sheet') widths = [700,2450,1850,1670,850,1552];
   else if(kind==='atbl'){ ind = 851; widths = [4300,2300,1621]; }
   else if(kind==='lh'){
     const im = t.querySelector('img'), L = lh();
