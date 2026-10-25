@@ -1816,7 +1816,7 @@ function renderCommList(){
   commEdit = null;
   const list = commList();
   $('#modal').innerHTML = `<div class="mbox" style="width:min(980px,100%)">
-    <div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">👥 รายชื่อคณะกรรมการ</h3><div class="row"><button class="btn" id="cmImport" title="ไฟล์ Excel/CSV คอลัมน์: คณะกรรมการ | คำสั่งที่ | ลำดับ | ชื่อ - สกุล | ตำแหน่ง | ตำแหน่งในคณะกรรมการ">📥 นำเข้าไฟล์ Excel</button><button class="btn primary" id="cmAdd">＋ เพิ่มคณะกรรมการ</button></div></div>
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">👥 รายชื่อคณะกรรมการ</h3><div class="row"><button class="btn" id="cmImport" title="เลือกไฟล์คำสั่งแต่งตั้ง (.docx) ได้หลายไฟล์พร้อมกัน หรือไฟล์ Excel/CSV">📥 นำเข้าจากคำสั่ง (Word) / Excel</button><button class="btn primary" id="cmAdd">＋ เพิ่มคณะกรรมการ</button></div></div>
     <p class="hint" style="margin:0 0 14px">ใช้ตอนสร้างการประชุมใหม่ — เลือกคณะกรรมการแล้วระบบจะดึงรายชื่อมาให้ · เก็บใน Google Sheet แท็บ “คณะกรรมการ”</p>
     ${list.length ? `<div class="cm-grid">${list.map((c,i)=>`
       <button class="cm-card" data-cm="${i}">
@@ -1827,39 +1827,131 @@ function renderCommList(){
       : `<div class="empty" style="padding:36px 10px"><div style="font-size:40px">👥</div><b>ยังไม่มีรายชื่อคณะกรรมการ</b><p>กด “เพิ่มคณะกรรมการ” แล้ววางข้อความจากคำสั่งแต่งตั้งได้ทั้งฉบับ</p></div>`}
     <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>ปิด</button></div></div>`;
   $('#cmAdd').onclick = ()=>{ commEdit = {idx:-1, c:{name:'', order:'', members:[]}}; renderCommEdit(true); };
-  $('#cmImport').onclick = ()=>{ const f=document.createElement('input'); f.type='file'; f.accept='.xlsx,.xls,.csv'; f.style.display='none'; document.body.appendChild(f); f.onchange=()=>{ const file=f.files[0]; f.remove(); if(file) importCommFile(file); }; f.click(); };
+  $('#cmImport').onclick = ()=>{ const f=document.createElement('input'); f.type='file'; f.accept='.docx,.xlsx,.xls,.csv'; f.multiple=true; f.style.display='none'; document.body.appendChild(f); f.onchange=()=>{ const fs=[...f.files]; f.remove(); if(fs.length) importCommFiles(fs); }; f.click(); };
   $('#modal').querySelectorAll('[data-cm]').forEach(b=>b.onclick = ()=>{ const i=+b.dataset.cm; commEdit = {idx:i, c:JSON.parse(JSON.stringify(commList()[i]))}; renderCommEdit(); });
 }
 /* ---------- นำเข้ารายชื่อคณะกรรมการจากไฟล์ Excel / CSV ---------- */
 function loadXlsxLib(){
   return window.XLSX ? Promise.resolve() : new Promise((ok,no)=>{ const sc=document.createElement('script'); sc.src='assets/xlsx.full.min.js'; sc.onload=ok; sc.onerror=()=>no(new Error('โหลดตัวอ่านไฟล์ Excel ไม่ได้')); document.head.appendChild(sc); });
 }
-async function importCommFile(file){
-  let rows;
-  try{
-    await loadXlsxLib();
-    const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
-    const sh = wb.Sheets[wb.SheetNames.find(n=>/คณะกรรมการ/.test(n)) || wb.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false});
-  }catch(e){ toast('อ่านไฟล์ไม่ได้: '+e.message); return; }
-  const hi = rows.findIndex(r=>r.some(c=>/^\s*คณะกรรมการ\s*$/.test(c)) && r.some(c=>/^\s*ชื่อ/.test(c)));
-  if(hi<0){ toast('ไม่พบหัวตาราง — ต้องมีคอลัมน์ “คณะกรรมการ” และ “ชื่อ - สกุล”'); return; }
-  const h = rows[hi].map(x=>String(x).trim()), col = re => h.findIndex(x=>re.test(x));
-  const ci = {c:col(/^คณะกรรมการ$/), order:col(/^คำสั่ง/), seq:col(/^ลำดับ/), name:col(/^ชื่อ/), pos:col(/^ตำแหน่ง$|^ตำแหน่ง\s*\/|^ตำแหน่งงาน/), role:col(/ตำแหน่งในคณะ/), org:col(/หน่วยงาน/)};
+/* ---------- อ่านคำสั่งแต่งตั้ง (Word .docx) ---------- */
+function docxLines(buf){
+  const z = XLSX.CFB.read(new Uint8Array(buf), {type:'array'});
+  const e = XLSX.CFB.find(z, 'word/document.xml') || XLSX.CFB.find(z, '/word/document.xml');
+  if(!e) throw new Error('ไม่ใช่ไฟล์ Word (.docx)');
+  const xml = new TextDecoder('utf-8').decode(new Uint8Array(e.content));
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', lines = [];
+  for(const p of doc.getElementsByTagNameNS(W, 'p')){
+    let s = '';
+    for(const n of p.getElementsByTagNameNS(W, '*')){
+      if(n.localName === 't') s += n.textContent;
+      else if(n.localName === 'tab' && n.parentNode && n.parentNode.localName === 'r') s += '\t';
+      else if((n.localName === 'br' || n.localName === 'cr') && n.parentNode && n.parentNode.localName === 'r') s += '\n';
+    }
+    s.split('\n').forEach(x=>lines.push(x));
+  }
+  return lines;
+}
+const ROLE_CELL = /^(ประธานคณะกรรมการ|ประธานกรรมการ|รองประธานคณะกรรมการ|รองประธานกรรมการ|กรรมการและผู้ช่วยเลขานุการ|กรรมการและเลขานุการ|ผู้ช่วยเลขานุการ|เลขานุการ|ประธาน|รองประธาน|กรรมการ)$/;
+const PRE_CELL = /^(ศาสตราจารย์|รองศาสตราจารย์|ผู้ช่วยศาสตราจารย์|อาจารย์|[ก-ฮA-Za-z]{1,4}\.(?:[ก-ฮA-Za-z]{1,4}\.)*)$/;
+function parseOrderDoc(lines){
+  const out = {name:'', order:'', members:[]};
+  const dept = String((lh().text||'').split('\n')[0]||'').trim();
+  for(const l of lines){
+    const t = l.replace(/\t/g,' ').replace(/\s+/g,' ').trim();
+    let k = t.match(/^เรื่อง\s+(.+)$/); if(k && !out.name) out.name = k[1].replace(/^แต่งตั้ง\s*/,'').trim();
+    k = t.match(/^(?:#+\s*)?ที่\s*([0-9๐-๙]+)\s*\/\s*([0-9๐-๙]{4})/); if(k && !out.order) out.order = thaiDigits(k[1]+'/'+k[2]);
+  }
+  out.name = out.name.replace(/\s*ประจำปี\s*(พ\.ศ\.\s*)?[0-9๐-๙]{4}\s*$/,'');
+  if(dept && /ภาควิชาฯ$/.test(out.name)) out.name = out.name.replace(/ภาควิชาฯ$/, dept);
+  const s = lines.findIndex(l=>/(ต่อไปนี้|ดังนี้)\s*:?\s*$/.test(l.trim()) || /ดัง(มี)?(รายนาม|รายชื่อ)/.test(l));
+  if(s < 0) return parseOrder(lines.join('\n'));
+  let e = lines.findIndex((l,i)=>i>s && /(หน้าที่|อำนาจ)/.test(l) && !/^\d/.test(l.replace(/^[\s\t]+/,'')));
+  if(e < 0) e = lines.length;
+  const cells = [];
+  lines.slice(s+1, e).forEach(l=>{ if(l.trim().startsWith('/')) return; l.split('\t').map(c=>c.trim()).filter(Boolean).forEach(c=>cells.push(c)); });
+  const mem = []; let cur = null, group = '';
+  for(const c of cells){
+    const m = c.match(/^(\d+(?:\.\d+)?)\.?\s*(.*)$/);
+    if(m && (m[2]==='' || !/^\d/.test(m[2]))){
+      const rest = m[2].trim();
+      if(rest.startsWith('ด้าน')){ group = rest; cur = null; continue; }
+      cur = {first:rest, sur:'', pos:'', role:'', group}; mem.push(cur); continue;
+    }
+    if(!cur){ if(c.startsWith('ด้าน')) group = c; continue; }
+    if(!cur.first){ if(c.startsWith('ด้าน')){ group = c; mem.pop(); cur = null; continue; } cur.first = c; cur.group = group; continue; }
+    if(ROLE_CELL.test(c)){ cur.role = normRole(c); continue; }
+    if(c.startsWith('(') && cur.pos){ cur.pos += ' ' + c; continue; }
+    const nonpre = cur.first.split(/\s+/).filter(x=>x && !PRE_CELL.test(x));
+    if(!cur.sur && nonpre.length < 2){ cur.sur = c; continue; }
+    cur.pos = cur.pos ? cur.pos + ' ' + c : c;
+  }
+  const defRole = /ผู้ตรวจติดตาม/.test(out.name) ? 'ผู้ตรวจติดตามภายใน' : 'กรรมการ';
+  out.members = mem.filter(x=>x.first).map(x=>{
+    let pos = x.pos.replace(/\s+/g,' ').trim();
+    if(x.group) pos = (pos + ' — รับผิดชอบ' + x.group).replace(/^ — /,'');
+    return {name:(x.first+' '+x.sur).replace(/\s+/g,' ').trim(), position:pos, role:x.role || defRole, org:''};
+  });
+  if(!out.members.length) return Object.assign(parseOrder(lines.join('\n')), {name: out.name, order: out.order});
+  return out;
+}
+
+async function readTableFile(file, buf){
+  let wb;
+  if(/\.csv$/i.test(file.name)){
+    let text = new TextDecoder('utf-8').decode(buf);
+    if(text.includes('�')) try{ text = new TextDecoder('windows-874').decode(buf); }catch(e){}
+    wb = XLSX.read(text, {type:'string'});
+  } else wb = XLSX.read(buf, {type:'array'});
+  const sh = wb.Sheets[wb.SheetNames.find(n=>/คณะกรรมการ/.test(n)) || wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false}).map(r=>r.map(c=>String(c).replace(/[​﻿]/g,'').trim()));
+  const hi = rows.findIndex(r=>r.some(c=>/คณะกรรมการ/.test(c) && c.length<=20) && r.some(c=>/^ชื่อ/.test(c)));
+  if(hi < 0){
+    const first = (rows.find(r=>r.some(Boolean))||[]).filter(Boolean).slice(0,6).join(' | ');
+    throw new Error(`“${file.name}” ไม่มีหัวตาราง “คณะกรรมการ” และ “ชื่อ - สกุล”${first?' (แถวแรกของไฟล์: '+first+')':''}`);
+  }
+  const h = rows[hi], col = re => h.findIndex(x=>re.test(x));
+  const ci = {c:col(/^(ชื่อ)?คณะกรรมการ$/), order:col(/^คำสั่ง/), seq:col(/^ลำดับ/), name:col(/^ชื่อ\s*[-–]?\s*(สกุล|นามสกุล)?$|^ชื่อ$/), pos:col(/^ตำแหน่ง$|^ตำแหน่ง\s*\/|^ตำแหน่งงาน/), role:col(/ตำแหน่งในคณะ/), org:col(/หน่วยงาน/)};
+  if(ci.c < 0) ci.c = h.findIndex(x=>/คณะกรรมการ/.test(x) && !/ตำแหน่ง/.test(x));
   const map = new Map();
   rows.slice(hi+1).forEach((r,i)=>{
     const cn = String(r[ci.c]||'').trim(); if(!cn) return;
     if(!map.has(cn)) map.set(cn, {name:cn, order:'', members:[]});
-    const c = map.get(cn); const v = k => ci[k]>=0 ? String(r[ci[k]]||'').trim() : '';
+    const c = map.get(cn), v = k => ci[k]>=0 ? String(r[ci[k]]||'').trim() : '';
     if(!c.order && v('order')) c.order = v('order');
     if(v('name')) c.members.push({name:v('name'), position:v('pos'), role:normRole(v('role')||'กรรมการ'), org:v('org'), _n:Number(v('seq'))||1000+i});
   });
-  const incoming = [...map.values()].map(c=>{ c.members.sort((a,b)=>a._n-b._n).forEach(m=>delete m._n); return c; });
-  if(!incoming.length){ toast('ไม่พบรายชื่อในไฟล์'); return; }
+  return [...map.values()].map(c=>{ c.members.sort((a,b)=>a._n-b._n).forEach(m=>delete m._n); return c; });
+}
+async function importCommFiles(files){
+  const incoming = [], errs = [];
+  try{ await loadXlsxLib(); }catch(e){ toast(e.message); return; }
+  for(const file of files){
+    try{
+      const buf = await file.arrayBuffer();
+      if(/\.docx$/i.test(file.name)){
+        const c = parseOrderDoc(docxLines(buf));
+        if(!c.name) c.name = file.name.replace(/\.docx$/i,'').replace(/^คำสั่ง\S*\s+[0-9๐-๙]+[-/][0-9๐-๙]+\s*/,'').replace(/^แต่งตั้ง\s*/,'');
+        if(!c.members.length) throw new Error(`“${file.name}” — ไม่พบรายชื่อในคำสั่ง`);
+        incoming.push(c);
+      } else if(/\.doc$/i.test(file.name)){
+        throw new Error(`“${file.name}” เป็น Word รุ่นเก่า (.doc) — กรุณาเปิดแล้ว “บันทึกเป็น .docx” ก่อน`);
+      } else if(/\.(xlsx|xls|csv)$/i.test(file.name)) (await readTableFile(file, buf)).forEach(c=>incoming.push(c));
+      else throw new Error(`“${file.name}” — รองรับเฉพาะไฟล์คำสั่ง Word (.docx) หรือ Excel (.xlsx, .csv)`);
+    }catch(e){ errs.push(e.message); }
+  }
+  if(!incoming.length){ openModal(`<h3>นำเข้าไม่สำเร็จ</h3><div style="color:var(--bad);font-size:14.5px;line-height:1.7">${errs.map(esc).join('<br>')}</div><p class="hint">เลือกไฟล์คำสั่งแต่งตั้ง (.docx) หรือไฟล์ Excel ที่มีคอลัมน์ คณะกรรมการ | ชื่อ - สกุล | ตำแหน่ง | ตำแหน่งในคณะกรรมการ</p><div class="row" style="justify-content:flex-end"><button class="btn" id="imBack">กลับ</button></div>`); $('#imBack').onclick=()=>openCommittees(); return; }
+  // รวมคณะกรรมการชื่อซ้ำในชุดที่นำเข้า (ใช้ฉบับหลังสุด)
+  const uniq = []; incoming.forEach(c=>{ const i = uniq.findIndex(x=>x.name===c.name); if(i>=0) uniq[i] = c; else uniq.push(c); });
+  return previewImport(uniq, errs);
+}
+async function previewImport(incoming, errs){
   await loadCommittees();
   const cur = commList();
   $('#modal').innerHTML = `<div class="mbox" style="width:min(760px,100%)">
-    <h3 style="margin:0 0 4px">📥 นำเข้ารายชื่อคณะกรรมการ</h3><p class="hint" style="margin:0 0 12px">${esc(file.name)} — ตรวจสอบก่อนกดนำเข้า</p>
+    <h3 style="margin:0 0 4px">📥 นำเข้ารายชื่อคณะกรรมการ</h3><p class="hint" style="margin:0 0 12px">ตรวจสอบชื่อคณะกรรมการและจำนวนคนก่อนกดนำเข้า — แก้ไขรายละเอียดได้ภายหลังที่หน้ารายชื่อคณะกรรมการ</p>
+    ${errs.length?`<div class="warn" style="font-size:13.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:8px 10px;margin-bottom:10px">${errs.map(esc).join('<br>')}</div>`:''}
     <div class="tbl-wrap" style="border:1px solid var(--line);border-radius:10px;max-height:52vh;overflow:auto"><table class="tbl"><thead><tr><th>คณะกรรมการ</th><th>คำสั่งที่</th><th>จำนวน</th><th>ประธาน / เลขานุการ</th><th></th></tr></thead><tbody>
     ${incoming.map(c=>{ const ex = cur.find(x=>x.name===c.name); const ch=c.members.find(m=>isChair(m.role)), se=c.members.find(m=>isSecretary(m.role));
       return `<tr><td style="font-weight:600">${esc(c.name)}</td><td>${esc(c.order)}</td><td>${c.members.length} คน</td><td style="font-size:13px">${esc(ch?ch.name:'—')}<br><span class="hint">${esc(se?se.name:'—')}</span></td><td>${ex?`<span class="badge b-prep">แทนที่ของเดิม (${ex.members.length} คน)</span>`:'<span class="badge b-done">เพิ่มใหม่</span>'}</td></tr>`; }).join('')}
