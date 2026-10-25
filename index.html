@@ -172,10 +172,10 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 .modal{position:fixed;inset:0;background:rgba(15,20,35,.45);z-index:50;display:grid;place-items:center;padding:16px}
 .mbox{background:#fff;border-radius:14px;width:min(640px,100%);max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .mbox h3{margin:0 0 4px;font-size:18px}
-.pad{width:100%;height:220px;border:1.5px dashed #b9b2a3;border-radius:10px;background:#fffef9 repeating-linear-gradient(transparent 0 169px,#d6d0c3 169px 170px,transparent 170px 220px);touch-action:none;cursor:crosshair;display:block}
+.pad{width:100%;height:220px;border:1.5px dashed #b9b2a3;border-radius:10px;background:#fffef9 repeating-linear-gradient(transparent 0 169px,#d6d0c3 169px 170px,transparent 170px 220px);touch-action:none;cursor:crosshair;display:block;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 
 /* kiosk */
-.kiosk{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto}
+.kiosk{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;overscroll-behavior:contain}
 .k-top{background:var(--accent);color:#fff;padding:18px 26px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 .k-top h2{margin:0;font-size:22px}
 .k-top .m{opacity:.8;font-size:15px}
@@ -1238,21 +1238,63 @@ function confirmBox(title, msg, ok){
   $('#okBtn').onclick = ()=>{ closeModal(); ok(); };
 }
 function makePad(canvas){
-  const ctx = canvas.getContext('2d'), r = window.devicePixelRatio||1;
+  // ช่องเซ็นชื่อ — รองรับ iPad / Apple Pencil / นิ้ว / เมาส์
+  // • เก็บทุกจุดที่เครื่องส่งมา (getCoalescedEvents) และวาดเป็นเส้นโค้งต่อเนื่อง
+  // • สนใจนิ้ว/ปากกาเพียงจุดเดียว (กันฝ่ามือแตะจอแล้วเส้นกระโดด) — ถ้าใช้ Apple Pencil จะไม่สนใจการแตะด้วยมือ
+  // • กันไม่ให้ iPad เลื่อนหน้า/ซูม/เลือกข้อความระหว่างเซ็น
+  const ctx = canvas.getContext('2d'), r = Math.max(1, window.devicePixelRatio||1);
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  canvas.width = w*r; canvas.height = h*r; ctx.scale(r,r);
-  ctx.lineWidth = 2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle = ctx.fillStyle = '#10204a';
-  let down=false, last=null, dirty=false;
-  const pos = e => { const b=canvas.getBoundingClientRect(); return {x:e.clientX-b.left, y:e.clientY-b.top}; };
-  canvas.addEventListener('pointerdown', e=>{ down=true; last=pos(e); canvas.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.arc(last.x,last.y,1.2,0,7); ctx.fill(); dirty=true; e.preventDefault(); });
-  canvas.addEventListener('pointermove', e=>{ if(!down) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; });
-  const up = ()=>{ down=false; }; canvas.addEventListener('pointerup',up); canvas.addEventListener('pointercancel',up);
+  canvas.width = Math.round(w*r); canvas.height = Math.round(h*r); ctx.scale(r,r);
+  ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = ctx.fillStyle = '#10204a';
+  let active = null, activeType = '', pts = [], dirty = false;
+  const pos = e => { const b = canvas.getBoundingClientRect(); return {x:(e.clientX-b.left)*(w/(b.width||w)), y:(e.clientY-b.top)*(h/(b.height||h))}; };
+  const mid = (a,b) => ({x:(a.x+b.x)/2, y:(a.y+b.y)/2});
+  function add(p){
+    const l = pts[pts.length-1];
+    if(l && Math.abs(l.x-p.x) + Math.abs(l.y-p.y) < 0.4) return;
+    pts.push(p);
+    const n = pts.length; if(n < 2) return;
+    const a = pts[n-3] || pts[n-2], b = pts[n-2], c = pts[n-1];
+    const s = n===2 ? b : mid(a,b), e = mid(b,c);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.quadraticCurveTo(b.x, b.y, e.x, e.y); ctx.stroke();
+  }
+  function finish(){
+    const n = pts.length;
+    if(n >= 2){ const b = pts[n-2], c = pts[n-1], s = mid(b,c); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(c.x, c.y); ctx.stroke(); }
+    active = null; activeType = ''; pts = [];
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    if(active !== null){
+      if(e.pointerType==='pen' && activeType!=='pen'){ pts = []; }   // ปากกามาทีหลังฝ่ามือ → ใช้ปากกา
+      else return;                                                   // นิ้ว/ฝ่ามือที่สอง → ไม่สนใจ
+    }
+    active = e.pointerId; activeType = e.pointerType;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    const p = pos(e); pts = [p];
+    ctx.beginPath(); ctx.arc(p.x, p.y, ctx.lineWidth/2, 0, Math.PI*2); ctx.fill();
+    dirty = true;
+  });
+  canvas.addEventListener('pointermove', e=>{
+    if(e.pointerId !== active) return;
+    e.preventDefault();
+    const list = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    (list.length ? list : [e]).forEach(ev=>add(pos(ev)));
+  });
+  const end = e => { if(e.pointerId === active){ add(pos(e)); finish(); } };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', e=>{ if(e.pointerId===active) finish(); });
+  canvas.addEventListener('lostpointercapture', e=>{ if(e.pointerId===active) finish(); });
+  ['touchstart','touchmove','touchend','gesturestart'].forEach(t=>canvas.addEventListener(t, ev=>ev.preventDefault(), {passive:false}));
+  canvas.addEventListener('contextmenu', ev=>ev.preventDefault());
   return {
-    clear(){ ctx.clearRect(0,0,w,h); dirty=false; },
+    clear(){ ctx.clearRect(0,0,w,h); dirty = false; pts = []; },
     empty:()=>!dirty,
-    data(){ // ย่อขนาดให้ไฟล์เล็กลง
-      const o=document.createElement('canvas'); const sc=Math.min(1, 360/w); o.width=Math.round(w*sc); o.height=Math.round(h*sc);
-      o.getContext('2d').drawImage(canvas,0,0,o.width,o.height); return o.toDataURL('image/png');
+    data(){ // ลดขนาดเป็นกว้างไม่เกิน 600 px (เส้นยังคมและต่อเนื่อง)
+      const tw = Math.min(600, w), th = Math.round(h*tw/w);
+      const o = document.createElement('canvas'); o.width = tw; o.height = th;
+      const x = o.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(canvas, 0, 0, tw, th); return o.toDataURL('image/png');
     }
   };
 }
