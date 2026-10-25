@@ -699,7 +699,7 @@ function panePeople(m){
       </tr>`).join('')}</tbody></table></div>`
     :`<div class="none" style="padding:20px;text-align:center">ยังไม่มีรายชื่อผู้เข้าประชุม</div>`}
   </div>
-  <div class="row"><button class="btn" data-act="tab" data-id="print" data-doc="signin">🖨 พิมพ์ใบลงชื่อผู้เข้าประชุม</button></div>`;
+  <div class="row"><button class="btn" data-act="tab" data-id="print" data-doc="signin">🖨 พิมพ์แบบบันทึกรายชื่อผู้เข้าประชุม</button></div>`;
 }
 function quorum(m){
   const mem = m.people.filter(p=>p.type==='member');
@@ -945,7 +945,7 @@ function panePrint(m){
   <div class="row" style="justify-content:space-between;margin-bottom:14px">
     <div class="seg">
       <button class="${ui.doc==='agenda'?'on':''}" data-act="doc" data-id="agenda">ระเบียบวาระการประชุม</button>
-      <button class="${ui.doc==='signin'?'on':''}" data-act="doc" data-id="signin">ใบลงชื่อผู้เข้าประชุม</button>
+      <button class="${ui.doc==='signin'?'on':''}" data-act="doc" data-id="signin">แบบบันทึกรายชื่อผู้เข้าประชุม</button>
       <button class="${ui.doc==='minutes'?'on':''}" data-act="doc" data-id="minutes">รายงานการประชุม</button>
     </div>
     <div class="row">
@@ -979,7 +979,7 @@ function docSignin(m){
   const rows = m.people.map((p,i)=>`<tr><td class="n">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.role||p.position)}${p.position&&p.role?'<br><small>'+esc(p.position)+'</small>':''}</td>
     <td style="text-align:center;width:3.6cm">${p.sig?`<img class="sigimg" src="${p.sig}">`:(p.status==='leave'?'ลาประชุม':p.status==='online'?'ออนไลน์':'')}</td><td style="text-align:center;width:1.8cm">${p.time?tm(p.time):''}</td></tr>`).join('');
   const blanks = Array.from({length:Math.max(5, 15-m.people.length)},(_,i)=>`<tr class="blank"><td class="n">${m.people.length+i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
-  return letterhead() + `<p class="title">ใบลงชื่อผู้เข้าประชุม</p>
+  return letterhead() + `<p class="title">แบบบันทึกรายชื่อผู้เข้าประชุม</p>
     <p class="c h">${esc(m.title||'')}${m.no?' ครั้งที่ '+esc(m.no):''}</p>
     <p class="c">${thaiDate(m.date)} เวลา ${tm(m.start)} น. ${m.mode==='online'?'ผ่านระบบประชุมออนไลน์':'ณ '+esc(m.venue||'')}</p>
     <table class="sheet"><thead><tr><th>ลำดับ</th><th>ชื่อ – สกุล</th><th>ตำแหน่ง</th><th>ลายมือชื่อ</th><th>เวลา</th></tr></thead><tbody>${rows}${blanks}</tbody></table>`;
@@ -1017,7 +1017,7 @@ function docMinutes(m){
   return h;
 }
 function docName(m){
-  const k = {agenda:'ระเบียบวาระ',signin:'ใบลงชื่อ',minutes:'รายงานการประชุม'}[ui.doc];
+  const k = {agenda:'ระเบียบวาระ',signin:'แบบบันทึกรายชื่อผู้เข้าประชุม',minutes:'รายงานการประชุม'}[ui.doc];
   return (k+' '+(m.title||'')+(m.no?' ครั้งที่ '+m.no:'')).replace(/[\\/:*?"<>|]/g,'-').trim();
 }
 /* ---------- สร้างไฟล์ Word (.docx) ---------- */
