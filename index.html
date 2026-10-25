@@ -180,6 +180,12 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 .qrfull .qrbig{width:min(70vh,520px);max-width:100%;margin:10px auto;aspect-ratio:1}
 .qrfull .qrbig svg{width:100%;height:100%}
 @media (max-width:620px){.signcard{grid-template-columns:1fr}.signcard .qr{margin:0 auto}}
+.cm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.cm-card{text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s, box-shadow .15s;display:block;width:100%}
+.cm-card:hover{border-color:var(--accent);box-shadow:0 4px 14px rgba(20,25,40,.08)}
+.cm-name{font-weight:600;font-size:15.5px;line-height:1.35}
+.cm-meta{font-size:13px;color:var(--muted);margin-top:4px}
+.cm-chair{font-size:13px;color:var(--gold);margin-top:2px}
 .paper-wrap{background:#d9d5cc;border-radius:var(--radius);padding:26px 12px;overflow-x:auto}
 .paper{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto;padding:22mm 20mm 22mm 28mm;box-shadow:0 4px 24px rgba(0,0,0,.18)}
 
@@ -389,6 +395,7 @@ function renderSide(){
   $('#side').innerHTML = `
     <div class="side-head">
       <button class="btn primary w" data-act="new">＋ สร้างการประชุมใหม่</button>
+      <button class="btn w" data-act="committees">👥 รายชื่อคณะกรรมการ</button>
       <input class="search" placeholder="ค้นหาการประชุม…" data-ui="q" value="${esc(ui.q)}">
     </div>
     <div class="mlist" id="mlist"></div>`;
@@ -575,6 +582,7 @@ function paneInfo(m){
   return `
   <div class="card"><h3>รายละเอียดการประชุม</h3>
     <div class="grid g4">
+      <label class="f span4">คณะกรรมการ (ใช้นับครั้งที่และดึงรายชื่อ)<div class="row" style="flex-wrap:nowrap"><select class="inp" data-b="m.committee">${[['','— ไม่ระบุคณะกรรมการ —']].concat(commList().map(c=>[c.name,c.name])).concat(m.committee && !commList().some(c=>c.name===m.committee) ? [[m.committee, m.committee]] : []).map(([k,v])=>`<option value="${esc(k)}" ${(m.committee||'')===k?'selected':''}>${esc(v)}</option>`).join('')}</select>${m.committee?'<button class="btn sm" data-act="edit-comm" title="แก้ไขรายชื่อคณะกรรมการนี้">แก้ไขรายชื่อ</button>':''}</div></label>
       ${fld('ชื่อการประชุม / คณะกรรมการ','m.title',m.title,{cls:'span3',ph:'เช่น การประชุมคณะกรรมการบริหาร',rr:'head'})}
       ${fld('ครั้งที่','m.no',m.no,{ph:'เช่น 10/2569',rr:'head'})}
       ${fld('หน่วยงาน','m.org',m.org,{cls:'span2',ph:'เช่น คณะ… มหาวิทยาลัย…'})}
@@ -665,6 +673,7 @@ function panePeople(m){
       <label class="f" style="align-self:end"><button class="btn primary" type="submit">＋ เพิ่มรายชื่อ</button></label>
     </form>
     <div class="row" style="margin-top:12px">
+      <button class="btn sm" data-act="pull-comm">👥 ดึงรายชื่อจากคณะกรรมการ</button>
       <button class="btn sm" data-act="bulk">วางรายชื่อหลายคน</button>
       ${m.people.some(p=>p.status==='pending')?`<button class="btn sm" data-act="all-present">ตั้งผู้ที่ยังไม่ลงชื่อทั้งหมดเป็น “มาประชุม”</button>`:''}
       ${others.length?`<button class="btn sm" data-act="copy-people">คัดลอกรายชื่อจากการประชุมอื่น</button>`:''}
@@ -1215,7 +1224,8 @@ document.addEventListener('click', e=>{
   const act = el.dataset.act, id = el.dataset.id, m = cur();
   switch(act){
     case 'menu': $('#side').classList.toggle('open'); return;
-    case 'new': { const nm = newMeeting(); S.meetings.push(nm); S.cur=nm.id; ui.tab='info'; save(); render(); $('#side').classList.remove('open'); setTimeout(()=>{const t=document.querySelector('[data-b="m.title"]'); t&&t.focus();},30); return; }
+    case 'new': openNewMeeting(); return;
+    case 'committees': openCommittees(); $('#side').classList.remove('open'); return;
     case 'demo': loadDemo(); return;
     case 'open': S.cur=id; save(); render(); $('#side').classList.remove('open'); window.scrollTo(0,0); return;
     case 'tab': ui.tab=id; if(el.dataset.doc) ui.doc=el.dataset.doc; render(); window.scrollTo(0,0); return;
@@ -1245,6 +1255,8 @@ document.addEventListener('click', e=>{
     case 'qr-full': qrFull(m); break;
     case 'sign-reset': confirmBox('สร้างลิงก์ลงชื่อใหม่?','ลิงก์และ QR code เดิมจะใช้ไม่ได้ทันที (เช่น เมื่อลิงก์หลุดออกไปนอกกลุ่ม)', ()=>{ m.signKey = signKeyNew(); save(); render(); }); break;
     case 'bulk': openBulk(m); break;
+    case 'pull-comm': pullCommittee(m); break;
+    case 'edit-comm': openCommittees(m.committee); break;
     case 'all-present': m.people.forEach(p=>{ if(p.status==='pending'){ p.status='present'; p.updated=Date.now(); } }); save(); render(); break;
     case 'copy-people': openCopy(m); break;
     case 'kiosk': ui.k={step:'list'}; renderKiosk(); break;
@@ -1280,7 +1292,7 @@ function duplicate(m){
   const secMap = {};
   const sections = m.sections.map(s=>{ const n={id:uid(), title:s.title}; secMap[s.id]=n.id; return n; });
   const nx = newMeeting({
-    title:m.title, org:m.org, venue:m.venue, mode:m.mode, link:m.link, start:m.start, end:m.end, chair:m.chair, secretary:m.secretary, recorder:m.recorder, checker:m.checker,
+    title:m.title, committee:m.committee, org:m.org, venue:m.venue, mode:m.mode, link:m.link, start:m.start, end:m.end, chair:m.chair, secretary:m.secretary, recorder:m.recorder, checker:m.checker,
     no: nextNo(m.no), sections,
     people: m.people.filter(p=>p.type==='member').map(p=>newPerson({name:p.name, position:p.position, org:p.org, role:p.role, type:'member'}))
   });
@@ -1650,7 +1662,7 @@ function showLogin(msg){
       const r = await api({action:'login', password:$('#pw').value});
       S.sess = r.session; S.sheetName = r.name; persist();
       $('#gate').classList.add('hidden'); lastAct = Date.now();
-      render(); await syncNow(); render();
+      render(); await syncNow(); render(); loadCommittees();
       toast('เข้าสู่ระบบแล้ว');
     }catch(err){
       $('#loginErr').textContent = errText(err) + (err.code==='wrong' && err.data.left<=3 ? ` (เหลืออีก ${err.data.left} ครั้งก่อนล็อก)` : '');
@@ -1670,7 +1682,7 @@ async function logout(force){
     if(S.meetings.some(isDirty)){ confirmBox('ยังบันทึกขึ้น Google Sheet ไม่ครบ', 'ถ้าออกจากระบบตอนนี้ การแก้ไขล่าสุดในเครื่องนี้อาจหาย — '+esc(sync.msg), ()=>logout(true)); return; }
   }
   try{ if(S.sess) await api({action:'logout'}); }catch(e){}
-  S.sess = null; S.meetings = []; S.cur = null; S.since = 0; S.delQ = []; persist();
+  S.sess = null; S.meetings = []; S.committees = []; S.cur = null; S.since = 0; S.delQ = []; persist();
   setSync('off'); showLogin();
 }
 function openAccount(){
@@ -1710,8 +1722,291 @@ setInterval(()=>{
   }
 }, 15000);
 
+/* ============ รายชื่อคณะกรรมการ ============ */
+const COMM_ROLES = ['ประธานกรรมการ','รองประธานกรรมการ','กรรมการ','กรรมการและเลขานุการ','กรรมการและผู้ช่วยเลขานุการ','ผู้ช่วยเลขานุการ','ที่ปรึกษา'];
+const commList = () => S.committees || [];
+async function loadCommittees(){
+  if(!syncOn()) return commList();
+  try{ const r = await api({action:'committees_get'}); S.committees = r.committees || []; persist(); }catch(e){ console.warn('committees', e); }
+  return commList();
+}
+async function saveCommittees(list){
+  const r = await api({action:'committees_save', committees:list});
+  S.committees = r.committees || []; persist(); return S.committees;
+}
+// ชื่อการประชุมจากชื่อคณะกรรมการ เช่น "คณะกรรมการพัฒนาคุณภาพ…" → "การประชุมคณะกรรมการพัฒนาคุณภาพ…"
+function commTitle(n){ n = String(n||'').replace(/^แต่งตั้ง\s*/,'').trim(); return /^การประชุม/.test(n) ? n : 'การประชุม' + n; }
+// ครั้งที่ถัดไปของคณะกรรมการในปี พ.ศ. ปัจจุบัน
+function commNextNo(name){
+  const y = new Date().getFullYear() + 543; let n = 0;
+  S.meetings.filter(m=>m.committee===name).forEach(m=>{ const k = String(m.no||'').match(/^(\d+)\s*\/\s*(\d{4})$/); if(k && +k[2]===y) n = Math.max(n, +k[1]); });
+  return (n+1) + '/' + y;
+}
+const isChair = r => /^ประธาน/.test(r||'');
+const isSecretary = r => /เลขานุการ/.test(r||'') && !/ผู้ช่วย/.test(r||'');
+
+/* ---------- แปลงข้อความจากคำสั่งแต่งตั้งเป็นรายชื่อ ---------- */
+const ROLE_RE = /(ประธานคณะกรรมการ|ประธานกรรมการ|รองประธานคณะกรรมการ|รองประธานกรรมการ|กรรมการและผู้ช่วยเลขานุการ|กรรมการและเลขานุการ|ผู้ช่วยเลขานุการ|เลขานุการ|อนุกรรมการ|ที่ปรึกษา|รองประธาน|ประธาน|กรรมการ)/;
+const NAME_PREFIX = /^(ศาสตราจารย์เกียรติคุณ|ศาสตราจารย์|รองศาสตราจารย์|ผู้ช่วยศาสตราจารย์|อาจารย์|ร้อยเอกหญิง|ร้อยเอก|ร้อยโทหญิง|ร้อยโท|พันเอก|พันโท|พันตรี|นาวาอากาศเอก|[ก-ฮA-Za-z]{1,4}\.(?:[ก-ฮA-Za-z]{1,4}\.)*(?:หญิง)?)$/;
+function normRole(r){
+  r = r.replace('ประธานคณะกรรมการ','ประธานกรรมการ').replace('รองประธานคณะกรรมการ','รองประธานกรรมการ');
+  if(r==='ประธาน') return 'ประธานกรรมการ'; if(r==='รองประธาน') return 'รองประธานกรรมการ'; return r;
+}
+function parseOrder(text){
+  let lines = String(text||'').replace(/\r/g,'').split('\n').map(l=>l.replace(/\\/g,'').replace(/​/g,'').trim()).filter(Boolean);
+  const out = {name:'', order:'', members:[]};
+  // ชื่อคำสั่ง / เลขที่คำสั่ง
+  lines.forEach(l=>{
+    let k = l.match(/^เรื่อง\s+(.+)$/); if(k && !out.name) out.name = k[1].replace(/^แต่งตั้ง\s*/,'').trim();
+    k = l.match(/^(?:#+\s*)?ที่\s*([0-9๐-๙]+\s*\/\s*[0-9๐-๙]{4})/); if(k && !out.order) out.order = thaiDigits(k[1].replace(/\s/g,''));
+  });
+  // ส่วนรายชื่อ: หลังบรรทัด "ดังนี้ / ดังรายชื่อ / ต่อไปนี้" จนถึง "เพื่อทำหน้าที่ / หน้าที่ / ทั้งนี้ / สั่ง ณ"
+  const st = lines.findIndex(l=>/(ดังนี้|ดังรายชื่อ|ดังรายนาม|ต่อไปนี้)\s*:?\s*$/.test(l));
+  if(st >= 0) lines = lines.slice(st+1);
+  const en = lines.findIndex(l=>/^(\/?เพื่อทำหน้าที่|หน้าที่|ทั้งนี้|สั่ง\s*ณ|หมายเหตุ)/.test(l));
+  if(en >= 0) lines = lines.slice(0, en);
+  // รวมบรรทัดที่วงเล็บยังไม่ปิด
+  const joined = [];
+  lines.forEach(l=>{ const last = joined[joined.length-1]; if(last && (last.match(/\(/g)||[]).length > (last.match(/\)/g)||[]).length) joined[joined.length-1] = last + ' ' + l; else joined.push(l); });
+  joined.forEach(line=>{
+    if(line.includes('\t')){ // วางจาก Excel: ชื่อ | ตำแหน่ง | ตำแหน่งในคณะกรรมการ
+      const c = line.split('\t').map(x=>x.trim());
+      if(c[0]) out.members.push({name:c[0].replace(/^[0-9๐-๙]+[.)]\s*/,''), position:c[1]||'', role:normRole(c[2]||'กรรมการ'), org:c[3]||''});
+      return;
+    }
+    let s = line.replace(/^[0-9๐-๙]+\s*[.)]?\s*/,'').trim();
+    if(!s || s.length < 4) return;
+    let position = '';
+    s = s.replace(/\(([^()]*)\)/g, (_,x)=>{ position += (position?' ':'') + x.trim(); return ' '; }).replace(/\s+/g,' ').trim();
+    let role = 'กรรมการ';
+    const rm = s.match(new RegExp('\\s' + ROLE_RE.source + '(?=\\s|$)'));
+    let rest = '';
+    if(rm){ role = normRole(rm[1]); rest = s.slice(rm.index + rm[0].length).trim(); s = s.slice(0, rm.index).trim(); }
+    // ชื่อ = คำนำหน้า + ชื่อ + นามสกุล
+    const tk = s.split(' '); let i = 0; const pre = [];
+    while(i < tk.length - 1 && NAME_PREFIX.test(tk[i])){ pre.push(tk[i]); i++; }
+    const name = pre.concat(tk.slice(i, i+2)).join(' ');
+    const extra = tk.slice(i+2).join(' ').trim();
+    if(!position && (extra || rest)) position = [extra, rest].filter(Boolean).join(' ');
+    else if(extra || rest) position = [position, extra, rest].filter(Boolean).join(' ');
+    if(name.replace(/\s/g,'').length >= 3) out.members.push({name, position: position.trim(), role, org:''});
+  });
+  return out;
+}
+// คีย์เทียบชื่อคนเดียวกันที่เขียนต่างกัน (ตัดยศ/คำนำหน้า เหลือชื่อ+นามสกุล)
+function nameKey(n){
+  const tk = String(n||'').replace(/\s+/g,' ').trim().split(' ').filter(t=>!NAME_PREFIX.test(t));
+  if(!tk.length) return '';
+  const first = tk[0].replace(/^(แพทย์หญิง|นายแพทย์|ทันตแพทย์หญิง|ทันตแพทย์|เภสัชกรหญิง|เภสัชกร|พญ\.|นพ\.|ทพญ\.|ทพ\.|ภญ\.|ภก\.|พว\.|นางสาว|น\.ส\.|นาง|นาย)/,'');
+  return (first + (tk.length > 1 ? tk[tk.length-1] : '')).toLowerCase();
+}
+function thaiDigits(s){ return String(s).replace(/[๐-๙]/g, d=>'๐๑๒๓๔๕๖๗๘๙'.indexOf(d)); }
+
+/* ---------- หน้าจัดการคณะกรรมการ ---------- */
+let commEdit = null;   // {idx, c}
+async function openCommittees(focusName){
+  openModal(`<h3>👥 รายชื่อคณะกรรมการ</h3><p class="hint">กำลังโหลด…</p>`);
+  widenModal();
+  await loadCommittees();
+  if(focusName){ const i = commList().findIndex(c=>c.name===focusName); if(i>=0){ commEdit = {idx:i, c:JSON.parse(JSON.stringify(commList()[i]))}; return renderCommEdit(); } }
+  renderCommList();
+}
+function widenModal(){ const b = $('#modal .mbox'); if(b) b.style.width = 'min(980px,100%)'; }
+function renderCommList(){
+  commEdit = null;
+  const list = commList();
+  $('#modal').innerHTML = `<div class="mbox" style="width:min(980px,100%)">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">👥 รายชื่อคณะกรรมการ</h3><div class="row"><button class="btn" id="cmImport" title="ไฟล์ Excel/CSV คอลัมน์: คณะกรรมการ | คำสั่งที่ | ลำดับ | ชื่อ - สกุล | ตำแหน่ง | ตำแหน่งในคณะกรรมการ">📥 นำเข้าไฟล์ Excel</button><button class="btn primary" id="cmAdd">＋ เพิ่มคณะกรรมการ</button></div></div>
+    <p class="hint" style="margin:0 0 14px">ใช้ตอนสร้างการประชุมใหม่ — เลือกคณะกรรมการแล้วระบบจะดึงรายชื่อมาให้ · เก็บใน Google Sheet แท็บ “คณะกรรมการ”</p>
+    ${list.length ? `<div class="cm-grid">${list.map((c,i)=>`
+      <button class="cm-card" data-cm="${i}">
+        <div class="cm-name">${esc(c.name)}</div>
+        <div class="cm-meta">${c.order?'คำสั่งที่ '+esc(c.order)+' · ':''}${c.members.length} คน</div>
+        <div class="cm-chair">${esc((c.members.find(m=>isChair(m.role))||{}).name||'')}</div>
+      </button>`).join('')}</div>`
+      : `<div class="empty" style="padding:36px 10px"><div style="font-size:40px">👥</div><b>ยังไม่มีรายชื่อคณะกรรมการ</b><p>กด “เพิ่มคณะกรรมการ” แล้ววางข้อความจากคำสั่งแต่งตั้งได้ทั้งฉบับ</p></div>`}
+    <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn" data-close>ปิด</button></div></div>`;
+  $('#cmAdd').onclick = ()=>{ commEdit = {idx:-1, c:{name:'', order:'', members:[]}}; renderCommEdit(true); };
+  $('#cmImport').onclick = ()=>{ const f=document.createElement('input'); f.type='file'; f.accept='.xlsx,.xls,.csv'; f.style.display='none'; document.body.appendChild(f); f.onchange=()=>{ const file=f.files[0]; f.remove(); if(file) importCommFile(file); }; f.click(); };
+  $('#modal').querySelectorAll('[data-cm]').forEach(b=>b.onclick = ()=>{ const i=+b.dataset.cm; commEdit = {idx:i, c:JSON.parse(JSON.stringify(commList()[i]))}; renderCommEdit(); });
+}
+/* ---------- นำเข้ารายชื่อคณะกรรมการจากไฟล์ Excel / CSV ---------- */
+function loadXlsxLib(){
+  return window.XLSX ? Promise.resolve() : new Promise((ok,no)=>{ const sc=document.createElement('script'); sc.src='assets/xlsx.full.min.js'; sc.onload=ok; sc.onerror=()=>no(new Error('โหลดตัวอ่านไฟล์ Excel ไม่ได้')); document.head.appendChild(sc); });
+}
+async function importCommFile(file){
+  let rows;
+  try{
+    await loadXlsxLib();
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+    const sh = wb.Sheets[wb.SheetNames.find(n=>/คณะกรรมการ/.test(n)) || wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false});
+  }catch(e){ toast('อ่านไฟล์ไม่ได้: '+e.message); return; }
+  const hi = rows.findIndex(r=>r.some(c=>/^\s*คณะกรรมการ\s*$/.test(c)) && r.some(c=>/^\s*ชื่อ/.test(c)));
+  if(hi<0){ toast('ไม่พบหัวตาราง — ต้องมีคอลัมน์ “คณะกรรมการ” และ “ชื่อ - สกุล”'); return; }
+  const h = rows[hi].map(x=>String(x).trim()), col = re => h.findIndex(x=>re.test(x));
+  const ci = {c:col(/^คณะกรรมการ$/), order:col(/^คำสั่ง/), seq:col(/^ลำดับ/), name:col(/^ชื่อ/), pos:col(/^ตำแหน่ง$|^ตำแหน่ง\s*\/|^ตำแหน่งงาน/), role:col(/ตำแหน่งในคณะ/), org:col(/หน่วยงาน/)};
+  const map = new Map();
+  rows.slice(hi+1).forEach((r,i)=>{
+    const cn = String(r[ci.c]||'').trim(); if(!cn) return;
+    if(!map.has(cn)) map.set(cn, {name:cn, order:'', members:[]});
+    const c = map.get(cn); const v = k => ci[k]>=0 ? String(r[ci[k]]||'').trim() : '';
+    if(!c.order && v('order')) c.order = v('order');
+    if(v('name')) c.members.push({name:v('name'), position:v('pos'), role:normRole(v('role')||'กรรมการ'), org:v('org'), _n:Number(v('seq'))||1000+i});
+  });
+  const incoming = [...map.values()].map(c=>{ c.members.sort((a,b)=>a._n-b._n).forEach(m=>delete m._n); return c; });
+  if(!incoming.length){ toast('ไม่พบรายชื่อในไฟล์'); return; }
+  await loadCommittees();
+  const cur = commList();
+  $('#modal').innerHTML = `<div class="mbox" style="width:min(760px,100%)">
+    <h3 style="margin:0 0 4px">📥 นำเข้ารายชื่อคณะกรรมการ</h3><p class="hint" style="margin:0 0 12px">${esc(file.name)} — ตรวจสอบก่อนกดนำเข้า</p>
+    <div class="tbl-wrap" style="border:1px solid var(--line);border-radius:10px;max-height:52vh;overflow:auto"><table class="tbl"><thead><tr><th>คณะกรรมการ</th><th>คำสั่งที่</th><th>จำนวน</th><th>ประธาน / เลขานุการ</th><th></th></tr></thead><tbody>
+    ${incoming.map(c=>{ const ex = cur.find(x=>x.name===c.name); const ch=c.members.find(m=>isChair(m.role)), se=c.members.find(m=>isSecretary(m.role));
+      return `<tr><td style="font-weight:600">${esc(c.name)}</td><td>${esc(c.order)}</td><td>${c.members.length} คน</td><td style="font-size:13px">${esc(ch?ch.name:'—')}<br><span class="hint">${esc(se?se.name:'—')}</span></td><td>${ex?`<span class="badge b-prep">แทนที่ของเดิม (${ex.members.length} คน)</span>`:'<span class="badge b-done">เพิ่มใหม่</span>'}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <p class="hint">คณะกรรมการที่ชื่อตรงกับของเดิมจะถูกแทนที่ด้วยรายชื่อในไฟล์ · คณะกรรมการอื่นที่มีอยู่แล้วไม่เปลี่ยน</p>
+    <div id="imMsg" style="font-size:14px"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" id="imCancel">ยกเลิก</button><button class="btn primary" id="imOk">นำเข้า ${incoming.length} คณะกรรมการ</button></div></div>`;
+  $('#imCancel').onclick = ()=>renderCommList();
+  $('#imOk').onclick = async ()=>{
+    const list = JSON.parse(JSON.stringify(commList()));
+    incoming.forEach(c=>{ const i = list.findIndex(x=>x.name===c.name); if(i>=0) list[i] = c; else list.push(c); });
+    $('#imOk').disabled = true; $('#imOk').textContent = 'กำลังบันทึก…';
+    try{ await saveCommittees(list); toast(`นำเข้า ${incoming.length} คณะกรรมการแล้ว`); renderCommList(); }
+    catch(e){ $('#imMsg').innerHTML = `<span style="color:var(--bad)">บันทึกไม่สำเร็จ: ${esc(errText(e))}</span>`; $('#imOk').disabled=false; $('#imOk').textContent='นำเข้าอีกครั้ง'; }
+  };
+}
+function renderCommEdit(openPaste){
+  const c = commEdit.c;
+  $('#modal').innerHTML = `<div class="mbox" style="width:min(980px,100%)">
+    <button class="btn ghost sm" id="cmBack" style="margin:-6px 0 6px -8px">← รายชื่อคณะกรรมการทั้งหมด</button>
+    <div class="grid" style="grid-template-columns:minmax(0,1fr) 160px;gap:10px 12px">
+      <label class="f">ชื่อคณะกรรมการ<input class="inp" id="cmName" value="${esc(c.name)}" placeholder="เช่น คณะกรรมการพัฒนาคุณภาพภาควิชาเวชศาสตร์การธนาคารเลือด"></label>
+      <label class="f">คำสั่งที่<input class="inp" id="cmOrder" value="${esc(c.order)}" placeholder="เช่น 1/2569"></label>
+    </div>
+    <details id="cmPasteBox" style="margin:14px 0 6px" ${openPaste||!c.members.length?'open':''}>
+      <summary style="cursor:pointer;font-weight:600;color:var(--accent)">📋 วางข้อความจากคำสั่งแต่งตั้ง (แยกชื่อ / ตำแหน่ง / ตำแหน่งในคณะกรรมการให้อัตโนมัติ)</summary>
+      <textarea class="inp" id="cmPaste" rows="6" style="margin-top:8px" placeholder="คัดลอกคำสั่งทั้งฉบับมาวางได้เลย เช่น&#10;เรื่อง แต่งตั้งคณะกรรมการพัฒนาคุณภาพภาควิชาเวชศาสตร์การธนาคารเลือด&#10;1. รศ. ร.อ.หญิง พญ.ปาริชาติ เพิ่มพิกุล (ผู้อำนวยการห้องปฏิบัติการ) ประธานกรรมการ&#10;2. นายสมชาย ใจดี กรรมการและเลขานุการ"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn sm primary" id="cmParse">แปลงเป็นรายชื่อ</button>
+        <label class="row" style="gap:6px;font-size:14px"><input type="checkbox" id="cmReplace" ${c.members.length?'':'checked'}> แทนที่รายชื่อเดิม</label>
+        <span class="hint" id="cmParseMsg"></span></div>
+    </details>
+    <datalist id="cmRoles">${COMM_ROLES.map(r=>`<option value="${r}">`).join('')}</datalist>
+    <div class="tbl-wrap" style="margin-top:10px;max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="tbl"><thead><tr><th style="width:36px">#</th><th>ชื่อ – สกุล</th><th>ตำแหน่ง / หน้าที่</th><th style="width:210px">ตำแหน่งในคณะกรรมการ</th><th style="width:76px"></th></tr></thead>
+      <tbody>${c.members.map((m,i)=>`<tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><input class="inp" data-cmf="name" data-i="${i}" value="${esc(m.name)}"></td>
+        <td><input class="inp" data-cmf="position" data-i="${i}" value="${esc(m.position)}" placeholder="—"></td>
+        <td><input class="inp" list="cmRoles" data-cmf="role" data-i="${i}" value="${esc(m.role)}" style="${isChair(m.role)||isSecretary(m.role)?'font-weight:600;color:var(--accent)':''}"></td>
+        <td><div class="tools"><button class="btn ghost icon" data-cmup="${i}" title="เลื่อนขึ้น">↑</button><button class="btn ghost icon danger" data-cmdel="${i}" title="ลบ">✕</button></div></td>
+      </tr>`).join('') || `<tr><td colspan="5" class="none" style="text-align:center;padding:18px">ยังไม่มีรายชื่อ — วางข้อความจากคำสั่งด้านบน หรือกด “เพิ่มรายชื่อ”</td></tr>`}</tbody></table>
+    </div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="cmAddRow">＋ เพิ่มรายชื่อ</button><span class="hint">${c.members.length} คน</span></div>
+    <div id="cmMsg" style="margin-top:8px;font-size:14px"></div>
+    <div class="row" style="justify-content:space-between;margin-top:14px">
+      ${commEdit.idx>=0?'<button class="btn danger" id="cmDel">ลบคณะกรรมการนี้</button>':'<span></span>'}
+      <div class="row"><button class="btn" id="cmCancel">ยกเลิก</button><button class="btn primary" id="cmSave">💾 บันทึก</button></div>
+    </div></div>`;
+  const sync = ()=>{ c.name = $('#cmName').value.trim(); c.order = $('#cmOrder').value.trim(); };
+  $('#modal').querySelectorAll('[data-cmf]').forEach(inp=>inp.oninput = ()=>{ c.members[+inp.dataset.i][inp.dataset.cmf] = inp.value; });
+  $('#modal').querySelectorAll('[data-cmdel]').forEach(b=>b.onclick = ()=>{ sync(); c.members.splice(+b.dataset.cmdel,1); renderCommEdit(); });
+  $('#modal').querySelectorAll('[data-cmup]').forEach(b=>b.onclick = ()=>{ sync(); const i=+b.dataset.cmup; if(i>0){ [c.members[i-1],c.members[i]]=[c.members[i],c.members[i-1]]; renderCommEdit(); } });
+  $('#cmAddRow').onclick = ()=>{ sync(); c.members.push({name:'', position:'', role:'กรรมการ', org:''}); renderCommEdit(); const ins=$('#modal').querySelectorAll('[data-cmf="name"]'); ins[ins.length-1].focus(); };
+  $('#cmParse').onclick = ()=>{
+    sync(); const r = parseOrder($('#cmPaste').value);
+    if(!r.members.length){ $('#cmParseMsg').textContent = 'ไม่พบรายชื่อ — ลองวางเฉพาะบรรทัดรายชื่อ บรรทัดละ 1 คน'; return; }
+    if(!c.name && r.name) c.name = r.name; if(!c.order && r.order) c.order = r.order;
+    c.members = $('#cmReplace').checked ? r.members : c.members.concat(r.members);
+    renderCommEdit(); $('#cmMsg').innerHTML = `<span style="color:var(--ok)">✓ แปลงได้ ${r.members.length} รายชื่อ — ตรวจสอบชื่อและตำแหน่งก่อนกดบันทึก</span>`;
+  };
+  $('#cmBack').onclick = $('#cmCancel').onclick = ()=>renderCommList();
+  $('#cmSave').onclick = async ()=>{
+    sync();
+    if(!c.name){ $('#cmMsg').innerHTML = '<span style="color:var(--bad)">กรุณาใส่ชื่อคณะกรรมการ</span>'; $('#cmName').focus(); return; }
+    c.members = c.members.filter(m=>String(m.name||'').trim());
+    const list = JSON.parse(JSON.stringify(commList()));
+    if(list.some((x,i)=>x.name===c.name && i!==commEdit.idx)){ $('#cmMsg').innerHTML = '<span style="color:var(--bad)">มีคณะกรรมการชื่อนี้อยู่แล้ว</span>'; return; }
+    const oldName = commEdit.idx>=0 ? list[commEdit.idx].name : null;
+    if(commEdit.idx>=0) list[commEdit.idx] = c; else list.push(c);
+    $('#cmSave').disabled = true; $('#cmSave').textContent = 'กำลังบันทึก…';
+    try{
+      await saveCommittees(list);
+      if(oldName && oldName!==c.name){ S.meetings.forEach(m=>{ if(m.committee===oldName) m.committee = c.name; }); save(); }
+      toast('บันทึกรายชื่อคณะกรรมการแล้ว'); renderCommList();
+    }catch(e){ $('#cmMsg').innerHTML = `<span style="color:var(--bad)">บันทึกไม่สำเร็จ: ${esc(errText(e))}</span>`; $('#cmSave').disabled=false; $('#cmSave').textContent='💾 บันทึก'; }
+  };
+  const del = $('#cmDel');
+  if(del) del.onclick = ()=>{
+    if(!confirm('ลบคณะกรรมการ “'+c.name+'”? (การประชุมที่สร้างไว้แล้วไม่ถูกลบ)')) return;
+    const list = commList().filter((_,i)=>i!==commEdit.idx);
+    saveCommittees(list).then(()=>{ toast('ลบคณะกรรมการแล้ว'); renderCommList(); }).catch(e=>{ $('#cmMsg').innerHTML = `<span style="color:var(--bad)">${esc(errText(e))}</span>`; });
+  };
+}
+
+/* ---------- สร้างการประชุมใหม่: เลือกคณะกรรมการ ---------- */
+function blankMeeting(){
+  const nm = newMeeting(); S.meetings.push(nm); S.cur = nm.id; ui.tab='info'; save(); render(); $('#side').classList.remove('open');
+  setTimeout(()=>{ const t=document.querySelector('[data-b="m.title"]'); t&&t.focus(); },30);
+}
+function meetingFromCommittee(c){
+  const ms = c.members || [];
+  const chair = ms.find(x=>isChair(x.role)), sec = ms.find(x=>isSecretary(x.role));
+  const nm = newMeeting({
+    title: commTitle(c.name), committee: c.name, no: commNextNo(c.name),
+    chair: chair ? chair.name : '', secretary: sec ? sec.name : '', recorder: sec ? sec.name : '',
+    people: ms.map(x=>newPerson({name:x.name, position:x.position||'', org:x.org||'', role:x.role||'กรรมการ', type:'member'}))
+  });
+  const last = S.meetings.filter(m=>m.committee===c.name).sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  if(last){ nm.venue = last.venue; nm.mode = last.mode; nm.start = last.start; nm.end = last.end; nm.link = last.link; nm.checker = last.checker; }
+  S.meetings.push(nm); S.cur = nm.id; ui.tab='info'; save(); render(); $('#side').classList.remove('open');
+  toast(`สร้างการประชุมและดึงรายชื่อ ${ms.length} คนแล้ว — กรุณาตรวจสอบวันที่และสถานที่`);
+}
+async function openNewMeeting(){
+  openModal(`<h3>สร้างการประชุมใหม่</h3><p class="hint">กำลังโหลดรายชื่อคณะกรรมการ…</p>`);
+  await loadCommittees();
+  const list = commList();
+  $('#modal').innerHTML = `<div class="mbox" style="width:min(860px,100%)">
+    <h3 style="margin:0 0 4px">สร้างการประชุมใหม่</h3>
+    <p class="hint" style="margin:0 0 14px">เลือกคณะกรรมการ — ระบบจะตั้งชื่อการประชุม ครั้งที่ ประธาน เลขานุการ และดึงรายชื่อกรรมการมาให้</p>
+    ${list.length ? `<input class="inp" id="nmQ" placeholder="ค้นหาคณะกรรมการ…" style="margin-bottom:10px">
+      <div class="cm-grid" id="nmList">${list.map((c,i)=>`
+        <button class="cm-card" data-nm="${i}"><div class="cm-name">${esc(c.name)}</div>
+          <div class="cm-meta">${c.members.length} คน · ครั้งถัดไป ${esc(commNextNo(c.name))}</div></button>`).join('')}</div>`
+      : `<div class="empty" style="padding:24px 10px"><b>ยังไม่มีรายชื่อคณะกรรมการ</b><p>เพิ่มคณะกรรมการไว้ก่อน แล้วครั้งต่อไปจะดึงรายชื่อได้ทันที</p></div>`}
+    <div class="row" style="justify-content:space-between;margin-top:16px">
+      <button class="btn ghost" id="nmManage">👥 จัดการรายชื่อคณะกรรมการ</button>
+      <div class="row"><button class="btn" data-close>ยกเลิก</button><button class="btn" id="nmBlank">เริ่มจากหน้าว่าง</button></div>
+    </div></div>`;
+  $('#modal').querySelectorAll('[data-nm]').forEach(b=>b.onclick = ()=>{ const c = list[+b.dataset.nm]; closeModal(); meetingFromCommittee(c); });
+  const q = $('#nmQ'); if(q){ q.focus(); q.oninput = ()=>{ const k=q.value.trim().toLowerCase(); $('#modal').querySelectorAll('[data-nm]').forEach(b=>b.style.display = !k || list[+b.dataset.nm].name.toLowerCase().includes(k) ? '' : 'none'); }; }
+  $('#nmBlank').onclick = ()=>{ closeModal(); blankMeeting(); };
+  $('#nmManage').onclick = ()=>openCommittees();
+}
+/* ---------- ดึงรายชื่อเข้าการประชุมที่มีอยู่ ---------- */
+async function pullCommittee(m){
+  openModal(`<h3>ดึงรายชื่อจากคณะกรรมการ</h3><p class="hint">กำลังโหลด…</p>`);
+  await loadCommittees();
+  const list = commList();
+  if(!list.length){ $('#modal .mbox').innerHTML = `<h3>ดึงรายชื่อจากคณะกรรมการ</h3><p class="hint">ยังไม่มีรายชื่อคณะกรรมการ</p><div class="row" style="justify-content:flex-end"><button class="btn" data-close>ปิด</button><button class="btn primary" id="pcManage">👥 เพิ่มคณะกรรมการ</button></div>`; $('#pcManage').onclick=()=>openCommittees(); return; }
+  const def = Math.max(0, list.findIndex(c=>c.name===m.committee));
+  $('#modal .mbox').innerHTML = `<h3>ดึงรายชื่อจากคณะกรรมการ</h3>
+    <select class="inp" id="pcSel" style="margin:10px 0">${list.map((c,i)=>`<option value="${i}" ${i===def?'selected':''}>${esc(c.name)} (${c.members.length} คน)</option>`).join('')}</select>
+    <p class="hint">ชื่อที่มีอยู่แล้วในการประชุมนี้จะไม่ถูกเพิ่มซ้ำ</p>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>ยกเลิก</button><button class="btn primary" id="pcOk">ดึงรายชื่อ</button></div>`;
+  $('#pcOk').onclick = ()=>{
+    const c = list[+$('#pcSel').value]; let n = 0;
+    const has = new Set(m.people.map(p=>nameKey(p.name)));
+    c.members.forEach(x=>{ const k = nameKey(x.name); if(has.has(k)) return; has.add(k); m.people.push(newPerson({name:x.name, position:x.position||'', org:x.org||'', role:x.role||'กรรมการ', type:'member'})); n++; });
+    if(!m.committee) m.committee = c.name;
+    if(!m.chair){ const ch=c.members.find(x=>isChair(x.role)); if(ch) m.chair=ch.name; }
+    if(!m.secretary){ const s=c.members.find(x=>isSecretary(x.role)); if(s){ m.secretary=s.name; if(!m.recorder) m.recorder=s.name; } }
+    save(); closeModal(); render(); toast(`เพิ่ม ${n} รายชื่อจาก${c.name}`);
+  };
+}
+
 applyDocFont();
-if(syncOn()){ render(); syncNow(); } else { render(); showLogin(); }
+if(syncOn()){ render(); syncNow().then(loadCommittees); } else { render(); showLogin(); }
 </script>
 
 </body>
