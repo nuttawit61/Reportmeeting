@@ -165,6 +165,21 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 .fontcard label.f{min-width:150px}
 .fontcard .warn{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:6px 10px}
 .fontcard .okf{font-size:13px;color:var(--ok)}
+.signcard{display:grid;grid-template-columns:150px minmax(0,1fr);gap:18px;align-items:center;border-color:#e3d3b0;background:linear-gradient(180deg,#fffdf8,#fff)}
+.signcard .qr{width:150px;height:150px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px;cursor:zoom-in;display:grid;place-items:center}
+.signcard .qr svg{width:100%;height:100%;display:block}
+.signcard .qr.off{opacity:.25;cursor:default}
+.signcard h3{margin:0 0 4px}
+.signcard .link{font-family:Consolas,monospace;font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;word-break:break-all;margin:8px 0;color:#3d4556;user-select:all}
+.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14.5px;font-weight:500}
+.switch input{appearance:none;-webkit-appearance:none;width:42px;height:24px;border-radius:999px;background:#cfd4dc;position:relative;cursor:pointer;transition:background .2s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+.switch input:checked{background:var(--ok)}
+.switch input:checked::after{left:21px}
+.qrfull{text-align:center}
+.qrfull .qrbig{width:min(70vh,520px);max-width:100%;margin:10px auto;aspect-ratio:1}
+.qrfull .qrbig svg{width:100%;height:100%}
+@media (max-width:620px){.signcard{grid-template-columns:1fr}.signcard .qr{margin:0 auto}}
 .paper-wrap{background:#d9d5cc;border-radius:var(--radius);padding:26px 12px;overflow-x:auto}
 .paper{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto;padding:22mm 20mm 22mm 28mm;box-shadow:0 4px 24px rgba(0,0,0,.18)}
 
@@ -293,6 +308,7 @@ textarea.inp{resize:vertical;min-height:64px;line-height:1.6}
 <input type="file" id="logoFile" accept="image/png,image/jpeg" class="hidden">
 
 <script src="config.js"></script>
+<script src="assets/qrcode.js"></script>
 <script>
 /* ============ ข้อมูลพื้นฐาน ============ */
 const KEY = 'meetingMinutes.v1';
@@ -653,10 +669,11 @@ function panePeople(m){
       ${m.people.some(p=>p.status==='pending')?`<button class="btn sm" data-act="all-present">ตั้งผู้ที่ยังไม่ลงชื่อทั้งหมดเป็น “มาประชุม”</button>`:''}
       ${others.length?`<button class="btn sm" data-act="copy-people">คัดลอกรายชื่อจากการประชุมอื่น</button>`:''}
       <span style="flex:1"></span>
-      <button class="btn gold" data-act="kiosk">✍ เปิดโหมดลงชื่อเข้าประชุม</button>
+      <button class="btn" data-act="kiosk">✍ โหมดลงชื่อในหน้านี้</button>
     </div>
     <p class="hint" style="margin:8px 0 0">โหมดลงชื่อเหมาะกับการเปิดบนแท็บเล็ตหน้าห้องประชุม ให้ผู้เข้าประชุมแตะชื่อและเซ็นชื่อด้วยตนเอง</p>
   </div>
+  ${signCard(m)}
   <div class="sumbar">
     <div class="stat"><b>${m.people.length}</b>ทั้งหมด</div>
     <div class="stat"><b style="color:var(--ok)">${c('present')}</b>มาประชุม</div>
@@ -691,6 +708,53 @@ function quorum(m){
   const need = Math.floor(mem.length/2)+1;
   const ok = here>=need;
   return `<div class="stat" style="border-color:${ok?'#b9dcc6':'#f0d3a7'};background:${ok?'var(--ok-soft)':'var(--warn-soft)'}">องค์ประชุม: <b style="color:${ok?'var(--ok)':'var(--warn)'}">${here}/${mem.length}</b>${ok?'ครบองค์ประชุม':'ต้องการอย่างน้อย '+need+' คน'}</div>`;
+}
+
+/* ---------- ลิงก์ / QR หน้าลงชื่อเข้าประชุม (signin.html) ---------- */
+function signKeyNew(){ const a = new Uint8Array(12); (crypto.getRandomValues ? crypto.getRandomValues(a) : a.forEach((_,i)=>a[i]=Math.random()*256)); return [...a].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function signBase(){
+  if(/^https?:$/.test(location.protocol)) return new URL('signin.html', location.href).href;
+  const site = String((window.APP_CONFIG||{}).SITE_URL||'').trim();
+  return site ? new URL('signin.html', site.endsWith('/') ? site : site+'/').href : '';
+}
+function signUrl(m){ const b = signBase(); return b && m.signKey ? b + '?m=' + encodeURIComponent(m.id) + '&k=' + m.signKey : ''; }
+function qrSvg(text){
+  try{ const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createSvgTag({cellSize:4, margin:2, scalable:true}); }
+  catch(e){ return '<span class="hint">สร้าง QR ไม่ได้</span>'; }
+}
+function signCard(m){
+  if(!m.signKey){ m.signKey = signKeyNew(); save(); }
+  const url = signUrl(m), open = m.signOpen !== false, pending = typeof isDirty==='function' && isDirty(m);
+  return `<div class="card signcard">
+    <div class="qr ${open&&url?'':'off'}" ${open&&url?'data-act="qr-full"':''} title="คลิกเพื่อขยาย QR">${url ? qrSvg(url) : '<span class="hint">—</span>'}</div>
+    <div>
+      <div class="row" style="justify-content:space-between"><h3>📱 หน้าลงชื่อเข้าประชุม</h3>
+        <label class="switch"><input type="checkbox" data-act="sign-open" ${open?'checked':''}> ${open?'เปิดรับลงชื่อ':'ปิดรับลงชื่อ'}</label></div>
+      <div class="hint" style="font-size:14px">ให้ผู้เข้าประชุมสแกน QR ด้วยมือถือ หรือเปิดลิงก์บน iPad หน้าห้องประชุม — ไม่ต้องใช้รหัสผ่าน รายชื่อที่ลงแล้วจะขึ้นในตารางด้านล่างอัตโนมัติ</div>
+      ${url ? `<div class="link">${esc(url)}</div>` : `<div class="warn" style="font-size:13.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:8px 10px;margin:8px 0">เปิดหน้านี้จากเว็บ GitHub เพื่อสร้างลิงก์ที่ใช้กับมือถือได้ (หรือใส่ SITE_URL ใน config.js)</div>`}
+      ${pending ? '<div class="hint" style="color:var(--warn)">⟳ กำลังบันทึกขึ้น Google Sheet — ลิงก์จะใช้ได้เมื่อบันทึกเสร็จ</div>' : ''}
+      <div class="row" style="margin-top:6px">
+        ${url ? `<a class="btn primary sm" href="${esc(url)}" target="_blank" rel="noopener" style="text-decoration:none">เปิดหน้าลงชื่อ ↗</a>
+        <button class="btn sm" data-act="sign-copy">คัดลอกลิงก์</button>
+        <button class="btn sm" data-act="qr-full">แสดง QR เต็มจอ</button>` : ''}
+        <button class="btn sm ghost" data-act="sign-reset" title="ลิงก์และ QR เดิมจะใช้ไม่ได้">สร้างลิงก์ใหม่</button>
+      </div>
+    </div>
+  </div>`;
+}
+function copyText(t){
+  const ok = () => toast('คัดลอกลิงก์แล้ว');
+  if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(ok, fb); else fb();
+  function fb(){ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); ok(); }catch(e){ toast('คัดลอกไม่สำเร็จ'); } ta.remove(); }
+}
+function qrFull(m){
+  const url = signUrl(m); if(!url) return;
+  openModal(`<div class="qrfull"><h3 style="font-size:22px">สแกนเพื่อลงชื่อเข้าประชุม</h3>
+    <p class="hint" style="margin:2px 0 0;font-size:15px">${esc(m.title||'')}${m.no?' ครั้งที่ '+esc(m.no):''} · ${thaiDate(m.date)}</p>
+    <div class="qrbig">${qrSvg(url)}</div>
+    <div class="hint" style="word-break:break-all;font-size:12.5px">${esc(url)}</div>
+    <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-close>ปิด</button></div></div>`);
+  $('#modal .mbox').style.width = 'min(760px,100%)';
 }
 
 /* ---------- บันทึกการประชุม ---------- */
@@ -1176,6 +1240,10 @@ document.addEventListener('click', e=>{
     case 'p-up': { const i=m.people.findIndex(x=>x.id===id); if(moveIn(m.people,i,-1)){save();render();} break; }
     case 'sign': openSign(m.people.find(x=>x.id===id)); break;
     case 'viewsig': viewSig(m.people.find(x=>x.id===id)); break;
+    case 'sign-open': m.signOpen = el.checked; save(); render(); break;
+    case 'sign-copy': copyText(signUrl(m)); break;
+    case 'qr-full': qrFull(m); break;
+    case 'sign-reset': confirmBox('สร้างลิงก์ลงชื่อใหม่?','ลิงก์และ QR code เดิมจะใช้ไม่ได้ทันที (เช่น เมื่อลิงก์หลุดออกไปนอกกลุ่ม)', ()=>{ m.signKey = signKeyNew(); save(); render(); }); break;
     case 'bulk': openBulk(m); break;
     case 'all-present': m.people.forEach(p=>{ if(p.status==='pending'){ p.status='present'; p.updated=Date.now(); } }); save(); render(); break;
     case 'copy-people': openCopy(m); break;

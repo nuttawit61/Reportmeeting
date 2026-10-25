@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a68">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ลงชื่อเข้าประชุม</title>
+<link rel="icon" href="assets/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1f3a68; --navy-2:#162b4f; --gold:#a8792e; --gold-soft:#f6eedf;
+  --bg:#f3f1ec; --card:#ffffff; --ink:#1c2333; --muted:#6b7280; --line:#e6e2d9; --line-2:#f0ede6;
+  --ok:#2c7a4b; --ok-soft:#e3f2e8; --bad:#b42318; --bad-soft:#fde7e5; --warn:#9a5b0b; --warn-soft:#fbefdc;
+  --font:'Sarabun','Leelawadee UI','Tahoma',sans-serif;
+  --shadow:0 1px 2px rgba(20,25,40,.05),0 8px 24px rgba(20,25,40,.07);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* ---------- ส่วนหัว ---------- */
+.hero{background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:#fff;padding:calc(22px + env(safe-area-inset-top)) 20px 64px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-80px;top:-90px;width:280px;height:280px;border-radius:50%;border:38px solid rgba(255,255,255,.05)}
+.hero-in{max-width:880px;margin:0 auto;display:flex;gap:16px;align-items:center;position:relative;z-index:1}
+.logo{width:64px;height:64px;border-radius:50%;background:#fff;padding:5px;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.logo img{width:100%;height:100%;object-fit:contain;display:block}
+.eyebrow{display:inline-block;font-size:13.5px;font-weight:600;letter-spacing:.3px;color:#f3d9a8;background:rgba(168,121,46,.22);border:1px solid rgba(243,217,168,.3);padding:1px 10px;border-radius:999px;margin-bottom:4px}
+.hero h1{margin:0;font-size:clamp(21px,3.4vw,28px);line-height:1.3;font-weight:700}
+.meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:15px;color:rgba(255,255,255,.82)}
+.meta span{display:inline-flex;align-items:center;gap:6px}
+.meta svg{opacity:.8;flex:none}
+
+.wrap{max-width:880px;margin:-44px auto 0;padding:0 16px calc(40px + env(safe-area-inset-bottom));position:relative;z-index:2}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+
+/* ---------- ความคืบหน้า ---------- */
+.progress{padding:16px 20px;display:flex;align-items:center;gap:18px}
+.progress .num{font-size:30px;font-weight:700;line-height:1;color:var(--navy);white-space:nowrap}
+.progress .num small{font-size:17px;color:var(--muted);font-weight:500}
+.progress .bar-wrap{flex:1;min-width:0}
+.progress .lbl{font-size:14.5px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+.bar{height:10px;background:var(--line-2);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3a7d5a,var(--ok));border-radius:999px;transition:width .6s ease}
+
+/* ---------- ค้นหา + รายชื่อ ---------- */
+.search{position:relative;margin:18px 0 6px}
+.search input{width:100%;padding:15px 18px 15px 50px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font-size:18px;outline:none;transition:border-color .15s, box-shadow .15s}
+.search input:focus{border-color:var(--navy);box-shadow:0 0 0 4px rgba(31,58,104,.1)}
+.search svg{position:absolute;left:17px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.sec-title{display:flex;align-items:center;justify-content:space-between;margin:22px 4px 10px;font-weight:600;font-size:16px;color:var(--muted)}
+.sec-title b{color:var(--ink);font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.person{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;transition:transform .08s, border-color .15s, box-shadow .15s;min-height:74px}
+.person:hover{border-color:#c8cfdc;box-shadow:0 4px 14px rgba(20,25,40,.07)}
+.person:active{transform:scale(.985)}
+.av{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:19px;color:#fff;background:var(--navy)}
+.person .nm{font-weight:600;font-size:17.5px;line-height:1.3}
+.person .rl{font-size:14.5px;color:var(--muted);line-height:1.3;margin-top:2px}
+.person .go{margin-left:auto;color:#b9c0cc;flex:none}
+.done-list{display:flex;flex-wrap:wrap;gap:8px}
+.done-chip{display:inline-flex;align-items:center;gap:7px;background:var(--ok-soft);color:#1f5f3a;border-radius:999px;padding:6px 13px 6px 8px;font-size:15px}
+.done-chip .ck{width:20px;height:20px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:12px}
+.done-chip small{color:#4f7f62}
+.empty{text-align:center;color:var(--muted);padding:26px 10px;font-size:16px}
+.register{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-top:22px;padding:16px;border:1.5px dashed #c9c1b0;border-radius:14px;background:transparent;color:var(--gold);font-weight:600;font-size:17px;cursor:pointer}
+.register:hover{background:var(--gold-soft)}
+
+/* ---------- หน้าเซ็นชื่อ ---------- */
+.back{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;font-weight:600;font-size:16px;padding:8px 16px 8px 10px;border-radius:999px;cursor:pointer;margin:0 0 12px;backdrop-filter:blur(4px)}
+.back:hover{background:rgba(255,255,255,.22)}
+.sign-card{padding:22px 22px 20px}
+.who{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.who .av{width:58px;height:58px;font-size:24px}
+.who .nm{font-size:22px;font-weight:700;line-height:1.3}
+.who .rl{color:var(--muted);font-size:15.5px}
+.field{display:grid;gap:6px;margin-bottom:12px;font-size:15px;color:var(--muted);font-weight:500}
+.field input{padding:13px 15px;border:1.5px solid var(--line);border-radius:12px;font-size:17.5px;color:var(--ink);outline:none;background:#fff}
+.field input:focus{border-color:var(--navy);box-shadow:0 0 0 4px rgba(31,58,104,.1)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.fields .full{grid-column:1/-1}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.seg button{padding:13px 10px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-weight:600;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted)}
+.seg button.on{border-color:var(--navy);background:#eef2f9;color:var(--navy)}
+.pad-label{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 8px;font-size:15px;color:var(--muted);font-weight:500}
+.pad-wrap{position:relative;border-radius:16px;background:#fffef9;border:2px dashed #cfc6b3;overflow:hidden}
+.pad-wrap.inked{border-style:solid;border-color:#bfb59f}
+.pad{display:block;width:100%;height:clamp(200px,34vh,300px);touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pad-hint{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:#c2b8a3;font-size:clamp(20px,3vw,26px);font-weight:500;transition:opacity .2s}
+.pad-wrap.inked .pad-hint{opacity:0}
+.pad-line{position:absolute;left:8%;right:8%;bottom:26%;border-bottom:1.5px solid #ddd3c0;pointer-events:none}
+.pad-x{position:absolute;left:calc(8% - 4px);bottom:calc(26% + 2px);color:#c2b8a3;font-size:20px;pointer-events:none}
+.clear{background:none;border:none;color:var(--muted);font-weight:600;font-size:15px;cursor:pointer;padding:4px 6px;border-radius:8px}
+.clear:hover{background:var(--line-2);color:var(--ink)}
+.actions{display:flex;gap:10px;margin-top:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;padding:15px 22px;font-size:18px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:#fff}
+.btn.primary{flex:1;background:var(--navy);border-color:var(--navy);color:#fff;box-shadow:0 6px 16px rgba(31,58,104,.25)}
+.btn.primary:disabled{background:#9aa6bb;border-color:#9aa6bb;box-shadow:none;cursor:not-allowed}
+.btn.primary:not(:disabled):active{transform:scale(.99)}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:12px;padding:12px 14px;font-size:15.5px;margin-top:12px}
+
+/* ---------- สำเร็จ / สถานะ ---------- */
+.state{text-align:center;padding:44px 22px 36px}
+.ok-ring{width:104px;height:104px;margin:0 auto 18px;border-radius:50%;background:var(--ok-soft);display:grid;place-items:center;animation:pop .45s cubic-bezier(.2,1.4,.4,1)}
+.ok-ring svg{width:56px;height:56px}
+.ok-ring path{stroke-dasharray:60;stroke-dashoffset:60;animation:draw .5s .25s ease forwards}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.state h2{margin:0 0 6px;font-size:28px}
+.state .big{font-size:21px;font-weight:600}
+.state p{color:var(--muted);margin:6px 0 0}
+.state .btn{margin-top:24px;min-width:260px}
+.count{font-size:14.5px;color:var(--muted);margin-top:12px}
+.icon-state{width:84px;height:84px;margin:0 auto 16px;border-radius:50%;display:grid;place-items:center;font-size:40px}
+.skel{height:74px;border-radius:14px;background:linear-gradient(90deg,#ece9e2 0,#f5f3ee 50%,#ece9e2 100%);background-size:200% 100%;animation:sh 1.2s infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1c2333;color:#fff;padding:11px 18px;border-radius:12px;font-size:15px;z-index:20;opacity:0;pointer-events:none;transition:opacity .25s;max-width:92vw;text-align:center}
+.toast.show{opacity:1}
+.foot{text-align:center;color:#9aa0ab;font-size:13px;margin-top:26px}
+
+@media (max-width:560px){
+  body{font-size:16px}
+  .hero{padding-bottom:58px}
+  .logo{width:52px;height:52px}
+  .progress{padding:14px 16px;gap:14px}
+  .progress .num{font-size:26px}
+  .grid{grid-template-columns:1fr}
+  .fields{grid-template-columns:1fr}
+  .sign-card{padding:18px 16px}
+  .actions .btn:not(.primary){padding:15px 16px}
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-in">
+    <div class="logo"><img src="assets/logo.jpg" alt=""></div>
+    <div style="min-width:0">
+      <span class="eyebrow">ลงชื่อเข้าประชุม</span>
+      <h1 id="mTitle">กำลังโหลด…</h1>
+      <div class="meta" id="mMeta"></div>
+    </div>
+  </div>
+</header>
+<main class="wrap" id="app">
+  <div class="card progress"><div class="skel" style="flex:1;height:44px"></div></div>
+  <div style="display:grid;gap:10px;margin-top:22px"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+/* ===== ตั้งค่า ===== */
+const API = String((window.APP_CONFIG||{}).API_URL||'').trim();
+const Q = new URLSearchParams(location.search);
+const MID = Q.get('m')||'', KEY = Q.get('k')||'';
+const TH_DAYS=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const TH_MON=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const AV_COLORS=['#1f3a68','#2f6f8f','#7a4b8c','#a8792e','#3a7d5a','#8c3b4a','#4a5a9c','#6b6f2a'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tm=t=>t?String(t).replace(':','.'):'';
+function thaiDate(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00:00'); if(isNaN(d)) return iso; return 'วัน'+TH_DAYS[d.getDay()]+'ที่ '+d.getDate()+' '+TH_MON[d.getMonth()]+' พ.ศ. '+(d.getFullYear()+543); }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2800); }
+// ตัวอักษรแรกของชื่อ (ข้ามคำนำหน้า)
+const PREFIX=/^(ศาสตราจารย์เกียรติคุณ|ศาสตราจารย์|รองศาสตราจารย์|ผู้ช่วยศาสตราจารย์|อาจารย์|ศ\.|รศ\.|ผศ\.|อ\.|ดร\.|นายแพทย์|แพทย์หญิง|นพ\.|พญ\.|ทพ\.|ทพญ\.|ภก\.|ภญ\.|นางสาว|นาง|นาย|น\.ส\.|Mr\.|Mrs\.|Ms\.|Dr\.|\s)+/;
+function initial(n){ const s=String(n||'').replace(PREFIX,'').trim(); const m=s.match(/[ก-ฮA-Za-z]/); return m?m[0].toUpperCase():'?'; }
+function avColor(id){ let h=0; for(const c of String(id)) h=(h*31+c.charCodeAt(0))>>>0; return AV_COLORS[h%AV_COLORS.length]; }
+const ICON={
+  cal:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  clock:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  pin:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  search:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  chev:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  back:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  room:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>',
+  online:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  plus:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+};
+
+/* ===== สถานะ ===== */
+let D = null;          // ข้อมูลการประชุมจากเซิร์ฟเวอร์
+let view = 'list';     // list | sign | register | done | error
+let sel = null, q = '', mode = 'present', pad = null, busy = false, doneInfo = null, countdown = null;
+
+async function api(body){
+  let r; try{ r = await fetch(API, {method:'POST', body:JSON.stringify(Object.assign({m:MID, k:KEY}, body)), redirect:'follow'}); }
+  catch(e){ const x=new Error('network'); throw x; }
+  let j; try{ j = await r.json(); }catch(e){ throw new Error('badurl'); }
+  if(!j.ok){ const x=new Error(j.error||'error'); x.data=j; throw x; }
+  return j;
+}
+const ERR = {
+  network:'เชื่อมต่อไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง',
+  badurl:'ระบบยังไม่พร้อมใช้งาน กรุณาแจ้งเจ้าหน้าที่',
+  sig:'ลายมือชื่อไม่ถูกต้อง กรุณาเซ็นใหม่อีกครั้ง',
+  noperson:'ไม่พบรายชื่อนี้แล้ว กรุณาเลือกชื่อใหม่',
+  already:'ชื่อนี้ลงชื่อไปแล้ว',
+  noname:'กรุณากรอกชื่อ – สกุล'
+};
+
+async function load(silent){
+  if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(API)) return showError('⚙️','ระบบยังไม่ได้ตั้งค่า','กรุณาแจ้งเจ้าหน้าที่ (config.js)');
+  if(!MID || !KEY) return showError('🔗','ลิงก์ไม่ถูกต้อง','กรุณาสแกน QR code หรือเปิดลิงก์ที่ได้รับจากเจ้าหน้าที่อีกครั้ง');
+  try{
+    const j = await api({action:'sign_info'});
+    D = j; renderHeader();
+    if(view==='list' || view==='error'){ if(view==='error') view='list'; render(); }
+  }catch(e){
+    if(e.message==='nolink') return showError('🔗','ลิงก์นี้ใช้ไม่ได้แล้ว','ลิงก์อาจถูกเปลี่ยนใหม่ กรุณาสแกน QR code ล่าสุดจากเจ้าหน้าที่');
+    if(e.message==='closed'){ $('#mTitle').textContent = e.data.title||'การประชุม'; return showError('🔒','ปิดรับลงชื่อแล้ว','หากต้องการลงชื่อ กรุณาติดต่อเลขานุการการประชุม'); }
+    if(!silent || !D) return showError('📶','เชื่อมต่อไม่ได้', ERR[e.message]||String(e.message), true);
+  }
+}
+function renderHeader(){
+  const m = D.meeting;
+  $('#mTitle').textContent = (m.title||'การประชุม') + (m.no ? ' ครั้งที่ '+m.no : '');
+  document.title = 'ลงชื่อ · ' + (m.title||'การประชุม');
+  $('#mMeta').innerHTML = [
+    m.date ? `<span>${ICON.cal}${esc(thaiDate(m.date))}</span>` : '',
+    m.start ? `<span>${ICON.clock}${esc(tm(m.start))}${m.end?'–'+esc(tm(m.end)):''} น.</span>` : '',
+    m.mode==='online' ? `<span>${ICON.online}ประชุมออนไลน์</span>` : (m.venue ? `<span>${ICON.pin}${esc(m.venue)}</span>` : '')
+  ].join('');
+}
+function showError(icon, title, msg, retry){
+  view = 'error';
+  $('#app').innerHTML = `<div class="card state"><div class="icon-state" style="background:var(--line-2)">${icon}</div><h2>${esc(title)}</h2><p>${esc(msg)}</p>${retry?'<button class="btn primary" id="retry" style="flex:none">ลองอีกครั้ง</button>':''}</div>`;
+  if(retry) $('#retry').onclick = ()=>{ $('#app').innerHTML='<div class="card state"><p>กำลังโหลด…</p></div>'; load(); };
+  if(!D) $('#mTitle').textContent = 'ลงชื่อเข้าประชุม';
+}
+
+/* ===== หน้ารายชื่อ ===== */
+function render(){
+  clearInterval(countdown);
+  if(view==='list') return renderList();
+  if(view==='sign' || view==='register') return renderSign();
+  if(view==='done') return renderDone();
+}
+function renderList(){
+  const ppl = D.people;
+  const signed = ppl.filter(p=>p.signed), wait = ppl.filter(p=>!p.signed);
+  const total = ppl.length;
+  const pct = total ? Math.round(signed.length/total*100) : 0;
+  $('#app').innerHTML = `
+    <div class="card progress">
+      <div class="num">${signed.length}<small> / ${total}</small></div>
+      <div class="bar-wrap"><div class="lbl"><span>ลงชื่อแล้ว</span><span>${pct}%</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>
+    </div>
+    ${wait.length > 6 ? `<div class="search">${ICON.search}<input id="q" type="search" placeholder="พิมพ์ชื่อเพื่อค้นหา" value="${esc(q)}" autocomplete="off" enterkeyhint="search"></div>` : ''}
+    <div class="sec-title"><b>แตะที่ชื่อของท่าน</b><span>${wait.length} คนยังไม่ได้ลงชื่อ</span></div>
+    <div id="plist">${gridHtml(wait)}</div>
+    <button class="register" id="reg">${ICON.plus} ไม่พบชื่อของท่าน? ลงทะเบียนผู้เข้าร่วมประชุม</button>
+    ${signed.length ? `<div class="sec-title"><b>ลงชื่อแล้ว</b><span>${signed.length} คน</span></div>
+      <div class="done-list">${signed.slice().sort((a,b)=>String(b.time).localeCompare(String(a.time))).map(p=>`<span class="done-chip"><span class="ck">✓</span>${esc(p.name)}${p.time?` <small>${esc(tm(p.time))} น.</small>`:''}</span>`).join('')}</div>` : ''}
+    <div class="foot">ข้อมูลอัปเดตอัตโนมัติ</div>`;
+  const qi = $('#q');
+  if(qi) qi.oninput = e=>{ q = e.target.value; $('#plist').innerHTML = gridHtml(wait); bindPeople(); };
+  bindPeople();
+  $('#reg').onclick = ()=>{ sel = null; mode='present'; view='register'; render(); window.scrollTo({top:0,behavior:'smooth'}); };
+}
+
+function gridHtml(wait){
+  if(!wait.length) return `<div class="card empty">🎉 ทุกคนในรายชื่อลงชื่อครบแล้ว</div>`;
+  const k = q.trim().toLowerCase();
+  const show = wait.filter(p=>!k || (p.name+' '+p.role+' '+p.position).toLowerCase().includes(k));
+  if(!show.length) return `<div class="card empty">ไม่พบชื่อ “${esc(q)}” — ลงทะเบียนได้ที่ปุ่มด้านล่าง</div>`;
+  return `<div class="grid">${show.map(p=>`
+      <button class="person" data-pid="${esc(p.id)}">
+        <span class="av" style="background:${avColor(p.id)}">${esc(initial(p.name))}</span>
+        <span style="min-width:0"><div class="nm">${esc(p.name)}</div>${p.role||p.position?`<div class="rl">${esc(p.role||p.position)}</div>`:''}</span>
+        <span class="go">${ICON.chev}</span>
+      </button>`).join('')}</div>`;
+}
+function bindPeople(){
+  $('#app').querySelectorAll('[data-pid]').forEach(b=>b.onclick = ()=>{ sel = D.people.find(p=>p.id===b.dataset.pid); mode='present'; view='sign'; render(); window.scrollTo({top:0,behavior:'smooth'}); });
+}
+
+/* ===== หน้าเซ็นชื่อ ===== */
+function renderSign(){
+  const m = D.meeting, reg = view==='register';
+  const showMode = m.mode==='hybrid' || m.mode==='online';
+  if(m.mode==='online') mode='online';
+  $('#app').innerHTML = `
+    <button class="back" id="back">${ICON.back} กลับไปรายชื่อ</button>
+    <div class="card sign-card">
+      ${reg ? `<div class="who"><span class="av" style="background:var(--gold)">${ICON.plus}</span><div><div class="nm">ลงทะเบียนผู้เข้าร่วมประชุม</div><div class="rl">กรอกข้อมูลแล้วลงลายมือชื่อ</div></div></div>
+        <div class="fields">
+          <label class="field full">ชื่อ – สกุล *<input id="fName" autocomplete="name" placeholder="เช่น นายสมชาย ใจดี"></label>
+          <label class="field">ตำแหน่ง<input id="fPos" placeholder="ไม่บังคับ"></label>
+          <label class="field">หน่วยงาน<input id="fOrg" placeholder="ไม่บังคับ"></label>
+        </div>`
+      : `<div class="who"><span class="av" style="background:${avColor(sel.id)}">${esc(initial(sel.name))}</span><div><div class="nm">${esc(sel.name)}</div>${sel.role||sel.position?`<div class="rl">${esc(sel.role||sel.position)}</div>`:''}</div></div>`}
+      ${showMode ? `<div class="seg">
+          <button data-mode="present" class="${mode==='present'?'on':''}">${ICON.room} เข้าประชุมที่ห้อง</button>
+          <button data-mode="online" class="${mode==='online'?'on':''}">${ICON.online} เข้าร่วมออนไลน์</button></div>` : ''}
+      <div class="pad-label"><span>ลงลายมือชื่อในกรอบ</span><button class="clear" id="clr">ล้าง</button></div>
+      <div class="pad-wrap" id="padWrap"><span class="pad-line"></span><span class="pad-x">✕</span><canvas class="pad" id="pad"></canvas><span class="pad-hint">เซ็นชื่อที่นี่</span></div>
+      <div id="err"></div>
+      <div class="actions">
+        <button class="btn" id="cancel">ยกเลิก</button>
+        <button class="btn primary" id="ok" disabled>ยืนยันการลงชื่อ</button>
+      </div>
+    </div>`;
+  pad = makePad($('#pad'), ()=>{ $('#padWrap').classList.add('inked'); $('#ok').disabled = false; });
+  $('#clr').onclick = ()=>{ pad.clear(); $('#padWrap').classList.remove('inked'); $('#ok').disabled = true; };
+  $('#back').onclick = $('#cancel').onclick = ()=>{ view='list'; render(); load(true); };
+  $('#app').querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ mode=b.dataset.mode; $('#app').querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on', x===b)); });
+  $('#ok').onclick = submit;
+  if(reg) setTimeout(()=>$('#fName').focus(), 80);
+}
+async function submit(){
+  if(busy || pad.empty()) return;
+  const body = {action:'sign_submit', sig: pad.data(), status: mode};
+  if(view==='register'){
+    const n = $('#fName').value.trim();
+    if(!n){ $('#err').innerHTML = `<div class="err">${ERR.noname}</div>`; $('#fName').focus(); return; }
+    Object.assign(body, {name:n, position:$('#fPos').value.trim(), org:$('#fOrg').value.trim()});
+  } else body.pid = sel.id;
+  busy = true; const ok = $('#ok'); ok.disabled = true; ok.textContent = 'กำลังบันทึก…'; $('#err').innerHTML = '';
+  try{
+    const r = await api(body);
+    doneInfo = {name:r.name, time:r.time, mode};
+    view = 'done'; render(); load(true);
+  }catch(e){
+    if(e.message==='already'){ toast('ชื่อนี้ลงชื่อไปแล้ว'); view='list'; render(); load(true); }
+    else if(e.message==='nolink' || e.message==='closed'){ load(); }
+    else { $('#err').innerHTML = `<div class="err">${esc(ERR[e.message]||'บันทึกไม่สำเร็จ: '+e.message)}</div>`; ok.disabled = false; ok.textContent = 'ยืนยันการลงชื่อ'; }
+  }finally{ busy = false; }
+}
+
+/* ===== ลงชื่อสำเร็จ ===== */
+function renderDone(){
+  let n = 8;
+  $('#app').innerHTML = `<div class="card state">
+      <div class="ok-ring"><svg viewBox="0 0 52 52" fill="none" stroke="#2c7a4b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 27l8 8 16-17"/></svg></div>
+      <h2>ลงชื่อเรียบร้อย</h2>
+      <div class="big">${esc(doneInfo.name)}</div>
+      <p>เวลา ${esc(tm(doneInfo.time))} น.${doneInfo.mode==='online'?' · เข้าร่วมออนไลน์':''}</p>
+      <button class="btn primary" id="next" style="flex:none">กลับไปหน้ารายชื่อ</button>
+      <div class="count" id="cd">กลับหน้ารายชื่ออัตโนมัติใน ${n} วินาที</div>
+    </div>`;
+  $('#next').onclick = ()=>{ view='list'; q=''; render(); };
+  countdown = setInterval(()=>{ n--; const c=$('#cd'); if(c) c.textContent = `กลับหน้ารายชื่ออัตโนมัติใน ${n} วินาที`; if(n<=0){ view='list'; q=''; render(); } }, 1000);
+}
+
+/* ===== ช่องเซ็นชื่อ (รองรับ iPad / Apple Pencil / นิ้ว / เมาส์) ===== */
+function makePad(canvas, onInk){
+  const ctx = canvas.getContext('2d'), r = Math.max(1, window.devicePixelRatio||1);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = Math.round(w*r); canvas.height = Math.round(h*r); ctx.scale(r,r);
+  ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = ctx.fillStyle = '#10204a';
+  let active = null, activeType = '', pts = [], dirty = false;
+  const pos = e => { const b = canvas.getBoundingClientRect(); return {x:(e.clientX-b.left)*(w/(b.width||w)), y:(e.clientY-b.top)*(h/(b.height||h))}; };
+  const mid = (a,b) => ({x:(a.x+b.x)/2, y:(a.y+b.y)/2});
+  function add(p){
+    const l = pts[pts.length-1];
+    if(l && Math.abs(l.x-p.x) + Math.abs(l.y-p.y) < 0.4) return;
+    pts.push(p);
+    const n = pts.length; if(n < 2) return;
+    const a = pts[n-3] || pts[n-2], b = pts[n-2], c = pts[n-1];
+    const s = n===2 ? b : mid(a,b), e = mid(b,c);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.quadraticCurveTo(b.x, b.y, e.x, e.y); ctx.stroke();
+  }
+  function finish(){
+    const n = pts.length;
+    if(n >= 2){ const b = pts[n-2], c = pts[n-1], s = mid(b,c); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(c.x, c.y); ctx.stroke(); }
+    active = null; activeType = ''; pts = [];
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    if(active !== null){ if(e.pointerType==='pen' && activeType!=='pen'){ pts = []; } else return; }
+    active = e.pointerId; activeType = e.pointerType;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    const p = pos(e); pts = [p];
+    ctx.beginPath(); ctx.arc(p.x, p.y, ctx.lineWidth/2, 0, Math.PI*2); ctx.fill();
+    if(!dirty){ dirty = true; onInk && onInk(); }
+  });
+  canvas.addEventListener('pointermove', e=>{
+    if(e.pointerId !== active) return;
+    e.preventDefault();
+    const list = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    (list.length ? list : [e]).forEach(ev=>add(pos(ev)));
+  });
+  canvas.addEventListener('pointerup', e=>{ if(e.pointerId===active){ add(pos(e)); finish(); } });
+  canvas.addEventListener('pointercancel', e=>{ if(e.pointerId===active) finish(); });
+  canvas.addEventListener('lostpointercapture', e=>{ if(e.pointerId===active) finish(); });
+  ['touchstart','touchmove','touchend','gesturestart'].forEach(t=>canvas.addEventListener(t, ev=>ev.preventDefault(), {passive:false}));
+  canvas.addEventListener('contextmenu', ev=>ev.preventDefault());
+  return {
+    clear(){ ctx.clearRect(0,0,w,h); dirty = false; pts = []; },
+    empty:()=>!dirty,
+    data(){
+      const tw = Math.min(600, w), th = Math.round(h*tw/w);
+      const o = document.createElement('canvas'); o.width = tw; o.height = th;
+      const x = o.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(canvas, 0, 0, tw, th); return o.toDataURL('image/png');
+    }
+  };
+}
+
+/* ===== เริ่มทำงาน + อัปเดตรายชื่ออัตโนมัติ ===== */
+load();
+setInterval(()=>{ if(view==='list' && !document.hidden && !(document.activeElement && document.activeElement.id==='q')) load(true); }, 15000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && view==='list') load(true); });
+</script>
+</body>
+</html>
